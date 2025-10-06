@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>請求書作成システム</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <div class="wrap">
+        <!-- 上部のコントロールバー -->
+        <div class="control-bar">
+            <div class="control-left">
+                <h1 style="margin:0;font-size:18px;">請求書作成システム</h1>
+            </div>
+            <div class="control-right">
+                <button class="btn small ghost" id="loadBtn">読込</button>
+                <button class="btn small ghost" id="saveBtn">保存</button>
+                <button class="btn primary" id="pdfBtn">PDFダウンロード</button>
+                <button class="btn" id="printBtn">印刷</button>
+                <button class="btn ghost" id="clearBtn">初期化</button>
+            </div>
+        </div>
+
+        <div class="preview-wrap">
+            <div class="panel preview" id="preview">
+                <div class="sheet" id="sheet">
+                    <div class="title">御 請 求 書</div>
+
+                    <div class="meta">
+                        <div class="box to-box">
+                            <div class="to-name">
+                                <span id="p_toCompany" contenteditable="true" class="editable">株式会社</span>
+                                <span id="p_honorific_clickable" contenteditable="false"
+                                    title="クリックで御中/様を切り替え">御中</span>
+                            </div>
+                            <div class="kv">
+                                <div id="p_toAddr" contenteditable="true" class="editable" title="ダブルクリックで郵便番号検索">
+                                    〒<br />（住所）</div>
+                            </div>
+                            <!-- 隠し郵便番号入力フィールド -->
+                            <div id="postal_input_modal">
+                                <div class="postal-modal-title">郵便番号から住所を検索</div>
+                                <div class="postal-input-row">
+                                    <span>〒</span>
+                                    <input type="text" id="postal_code_1" class="postal-code-input" maxlength="3"
+                                        placeholder="000">
+                                    <span>-</span>
+                                    <input type="text" id="postal_code_2" class="postal-code-input" maxlength="4"
+                                        placeholder="0000">
+                                </div>
+                                <div class="postal-button-row">
+                                    <button id="address_lookup_btn" class="postal-button">住所検索</button>
+                                    <button id="postal_modal_close" class="postal-button">閉じる</button>
+                                </div>
+                            </div>
+                            <div class="kv greeting-section">
+                                <div id="p_greeting" class="readonly-field">下記の通りご請求申し上げます。</div>
+                                <div id="p_subject" contenteditable="true" class="editable">
+                                    2025年8月稼働分</div>
+                            </div>
+                        </div>
+                        <div class="box">
+                            <div class="kv right">
+                                <div><b>請求日：</b><span id="p_issueDate" contenteditable="true" class="editable">2025年 月
+                                        日</span></div>
+                                <div><b>請求書番号：</b><span id="p_invoiceNo" contenteditable="true"
+                                        class="editable">###########</span></div>
+                            </div>
+                            <div class="kv" style="margin-top:14px">
+                                <div style="font-size:16px; font-weight:600; margin-top:4px;" id="p_fromName"
+                                    class="editable">
+                                    株式会社ACE CREATION</div>
+                                <div id="p_fromAddr" contenteditable="true" class="editable">
+                                    〒615-0904<br />京都市右京区梅津堤上町21 KKハウスⅡ 101</div>
+                                <div>電話：<span id="p_fromTel" contenteditable="true"
+                                        class="editable">080-9540-4451</span>
+                                </div>
+                                <div>登録番号：<span id="p_fromReg" contenteditable="true"
+                                        class="editable">T6130001080238</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="headline">
+                        <div class="muted">ご請求金額</div>
+                        <div class="sum" id="p_billAmountDisplay" contenteditable="true" class="editable">￥ （税込）
+                        </div>
+                    </div>
+
+                    <!-- 共通テーブルヘッダー -->
+                    <table class="tbl">
+                        <thead>
+                            <tr>
+                                <th style="width: 50%;">摘要</th>
+                                <th style="width: 15%;">数量</th>
+                                <th style="width: 20%;">単価</th>
+                                <th style="width: 15%;">金額</th>
+                            </tr>
+                        </thead>
+                        <tbody class="section-group">
+                            <!-- Amazonセクション -->
+                            <tr class="section-row">
+                                <td class="section-name-cell">
+                                    <div class="inner">Amazon</div>
+                                    <button class="add-btn hide-print" onclick="addTableRow('amazon')"
+                                        title="行を追加">+</button>
+                                </td>
+                                <td class="section-empty-cell"></td>
+                                <td class="section-empty-cell"></td>
+                                <td class="section-empty-cell"></td>
+                            </tr>
+                        </tbody>
+                        <tbody id="p_amazon"></tbody>
+
+                        <tbody class="section-group">
+                            <!-- ヤマト運輸セクション -->
+                            <tr class="section-row">
+                                <td class="section-name-cell">
+                                    <div class="inner">ヤマト運輸</div>
+                                    <button class="add-btn hide-print" onclick="addTableRow('yamato')"
+                                        title="行を追加">+</button>
+                                </td>
+                                <td class="section-empty-cell"></td>
+                                <td class="section-empty-cell"></td>
+                                <td class="section-empty-cell"></td>
+                            </tr>
+                        </tbody>
+                        <tbody id="p_yamato"></tbody>
+
+                        <tbody class="section-group">
+                            <!-- 控除セクション -->
+                            <tr class="section-row">
+                                <td class="section-name-cell">
+                                    <div class="inner">控除</div>
+                                    <button class="add-btn hide-print" onclick="addTableRow('deduct')"
+                                        title="行を追加">+</button>
+                                </td>
+                                <td class="section-empty-cell"></td>
+                                <td class="section-empty-cell"></td>
+                                <td class="section-empty-cell"></td>
+                            </tr>
+                        </tbody>
+                        <tbody id="p_deduct"></tbody>
+                    </table>
+
+                    <div class="totals">
+                        <div class="row">
+                            <div class="total-label">小計</div>
+                            <div class="total-amount" id="p_subtotal"></div>
+                        </div>
+                        <div class="row">
+                            <div class="total-label">控除計</div>
+                            <div class="total-amount" id="p_deductTotal"></div>
+                        </div>
+                        <div class="row final-total">
+                            <div class="total-label"><b>合計</b></div>
+                            <div class="total-amount" id="p_total"></div>
+                        </div>
+                    </div>
+
+                    <div class="bank">
+                        <div><b>振込期日</b> <span id="p_dueDate" contenteditable="true" class="editable">2025年12月31日</span>
+                        </div>
+                        <div><b>振込先</b> <span id="p_bankName" contenteditable="true" class="editable">京都信用金庫
+                                梅津支店</span>
+                        </div>
+                        <div><span></span><span id="p_bankNo" contenteditable="true" class="editable">普通 3058832</span>
+                        </div>
+                        <div><span></span><span id="p_bankHolder" contenteditable="true"
+                                class="editable">口座名義：カ)ｴｰｽｸﾘｴｲｼｮﾝ</span>
+                        </div>
+                        <div>
+                            <span></span>
+                            <div class="notes" id="p_notes" contenteditable="true" class="editable">
+                                上記口座にお振込みをお願いいたします。</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="row" style="margin-top:12px;justify-content:center">
+                <span class="chip"><span class="muted">プレビューはA4表示</span></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- libs -->
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+    <script src="script.js"></script>
+</body>
+
+</html>
