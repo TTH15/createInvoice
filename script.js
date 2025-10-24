@@ -1,6 +1,6 @@
 const fmt = (n, cur) => (cur || "¥") + Number(n || 0).toLocaleString();
 const state = {
-    amazon: [], yamato: [], deduct: []
+    main: [], deduct: []
 };
 const q = sel => document.querySelector(sel);
 
@@ -12,7 +12,7 @@ function addTableRow(kind) {
         <td><input class="editable-cell" placeholder="摘要" value="" /></td>
         <td class="right"><input class="editable-cell" type="number" step="1" placeholder="数量" value="" style="text-align:right" /></td>
         <td class="right"><input class="editable-cell" type="number" step="1" placeholder="単価" value="" style="text-align:right" /></td>
-        <td class="right calculated-amount">0</td>
+        <td class="right calculated-amount">¥0</td>
     `;
 
     // 削除ボタンを追加（印刷時は非表示）
@@ -35,12 +35,22 @@ function addTableRow(kind) {
 
     // 入力フィールドにイベントリスナーを追加
     const inputs = row.querySelectorAll('input');
-    inputs.forEach(input => {
+    inputs.forEach((input, index) => {
         input.addEventListener('input', () => {
             updateRowAmount(row);
             calculateTotals();
             saveData();
         });
+
+        // 単価フィールド（index 2）に¥マーク追加のイベントリスナー
+        if (index === 2) {
+            input.addEventListener('input', () => {
+                addYenSymbolToInput(input, '単価');
+            });
+            input.addEventListener('blur', () => {
+                addYenSymbolToInput(input, '単価');
+            });
+        }
     });
 
     tbody.appendChild(row);
@@ -53,11 +63,49 @@ function addTableRow(kind) {
 // 行の金額を更新
 function updateRowAmount(row) {
     const inputs = row.querySelectorAll('input');
-    const qty = parseFloat(inputs[1].value || 0);
-    const price = parseFloat(inputs[2].value || 0); // 単位列を削除したので、単価は2番目のインデックス
+    const qty = parseFloat(inputs[1].value || 0); // 数量が1番目に戻る
+    const price = parseFloat(inputs[2].value || 0); // 単価が2番目に戻る
     const amount = qty * price;
     const amountCell = row.querySelector('.calculated-amount');
-    amountCell.textContent = fmt(amount).replace('¥', ''); // ¥マークを削除
+    amountCell.textContent = `¥${Number(amount || 0).toLocaleString()}`; // 金額に¥マークを追加
+
+    // 単価フィールドに¥マークを追加
+    const priceInput = inputs[2];
+    addYenSymbolToInput(priceInput, '単価');
+}
+
+// 入力フィールドに¥マークを追加する関数
+function addYenSymbolToInput(input, type) {
+    if (!input || !input.parentElement) return;
+
+    const parentTd = input.parentElement;
+    if (parentTd.style.position !== 'relative') {
+        parentTd.style.position = 'relative';
+    }
+
+    // 既存の¥マークを削除
+    const existingSymbol = parentTd.querySelector('.yen-symbol');
+    if (existingSymbol) {
+        existingSymbol.remove();
+    }
+
+    // 値がある場合のみ¥マークを表示
+    if (input.value) {
+        const yenSymbol = document.createElement('span');
+        yenSymbol.textContent = '¥';
+        yenSymbol.className = 'yen-symbol';
+        yenSymbol.style.position = 'absolute';
+        yenSymbol.style.left = '4px';
+        yenSymbol.style.top = '50%';
+        yenSymbol.style.transform = 'translateY(-50%)';
+        yenSymbol.style.pointerEvents = 'none';
+        yenSymbol.style.color = '#666';
+        yenSymbol.style.fontSize = '14px';
+        parentTd.appendChild(yenSymbol);
+        input.style.paddingLeft = '16px';
+    } else {
+        input.style.paddingLeft = '';
+    }
 }
 
 // 合計を計算
@@ -68,26 +116,26 @@ function calculateTotals() {
         rows.forEach(row => {
             const inputs = row.querySelectorAll('input');
             if (inputs.length >= 3) { // 3列に変更
-                const qty = parseFloat(inputs[1].value || 0);
-                const price = parseFloat(inputs[2].value || 0); // 単価のインデックスを変更
+                const qty = parseFloat(inputs[1].value || 0); // 数量が1番目に戻る
+                const price = parseFloat(inputs[2].value || 0); // 単価が2番目に戻る
                 total += qty * price;
             }
         });
         return total;
     };
 
-    const amazonTotal = getTableTotal('p_amazon');
-    const yamatoTotal = getTableTotal('p_yamato');
+    const mainTotal = getTableTotal('p_main');
     const deductTotal = getTableTotal('p_deduct');
 
-    const subtotal = amazonTotal + yamatoTotal;
-    const taxRate = 0.1; // 10% 固定
-    const tax = Math.round(subtotal * taxRate);
-    const total = subtotal + tax - deductTotal;
+    const subtotal = mainTotal;
+    const total = subtotal - deductTotal;
 
-    q('#p_subtotal').textContent = fmt(subtotal).replace('¥', '');
-    q('#p_deductTotal').textContent = fmt(deductTotal).replace('¥', '');
-    q('#p_total').textContent = fmt(total).replace('¥', '');
+    q('#p_subtotal').textContent = `¥${Number(subtotal).toLocaleString()}`;
+    q('#p_deductTotal').textContent = `¥${Number(deductTotal).toLocaleString()}`;
+    q('#p_total').textContent = `¥${Number(total).toLocaleString()}`;
+
+    // ご請求金額に合計を表示
+    q('#p_billAmountDisplay').textContent = `¥${Number(total).toLocaleString()}（税込）`;
 }
 
 // データを保存用に収集
@@ -100,8 +148,8 @@ function getDataFromTables() {
             if (inputs.length >= 3) {
                 data.push({
                     title: inputs[0].value || '',
-                    qty: parseFloat(inputs[1].value || 0),
-                    price: parseFloat(inputs[2].value || 0)
+                    qty: parseFloat(inputs[1].value || 0), // 数量が1番目に戻る
+                    price: parseFloat(inputs[2].value || 0) // 単価が2番目に戻る
                 });
             }
         });
@@ -109,8 +157,7 @@ function getDataFromTables() {
     };
 
     return {
-        amazon: getTableData('p_amazon'),
-        yamato: getTableData('p_yamato'),
+        main: getTableData('p_main'),
         deduct: getTableData('p_deduct')
     };
 }
@@ -126,7 +173,7 @@ function setDataToTables(data) {
                 <td><input class="editable-cell" value="${item.title || ''}" /></td>
                 <td class="right"><input class="editable-cell" type="number" step="1" value="${item.qty || ''}" style="text-align:right" /></td>
                 <td class="right"><input class="editable-cell" type="number" step="1" value="${item.price || ''}" style="text-align:right" /></td>
-                <td class="right calculated-amount">0</td>
+                <td class="right calculated-amount">¥0</td>
             `;
 
             // 削除ボタンを追加
@@ -149,12 +196,22 @@ function setDataToTables(data) {
 
             // イベントリスナーを追加
             const inputs = row.querySelectorAll('input');
-            inputs.forEach(input => {
+            inputs.forEach((input, index) => {
                 input.addEventListener('input', () => {
                     updateRowAmount(row);
                     calculateTotals();
                     saveData();
                 });
+
+                // 単価フィールド（index 2）に¥マーク追加のイベントリスナー
+                if (index === 2) {
+                    input.addEventListener('input', () => {
+                        addYenSymbolToInput(input, '単価');
+                    });
+                    input.addEventListener('blur', () => {
+                        addYenSymbolToInput(input, '単価');
+                    });
+                }
             });
 
             tbody.appendChild(row);
@@ -162,8 +219,7 @@ function setDataToTables(data) {
         });
     };
 
-    setTableData('p_amazon', data.amazon || []);
-    setTableData('p_yamato', data.yamato || []);
+    setTableData('p_main', data.main || []);
     setTableData('p_deduct', data.deduct || []);
 
     calculateTotals();
@@ -173,8 +229,7 @@ function setDataToTables(data) {
 // 追加ボタンの位置を更新する関数
 function updateAddButtonPositions() {
     const sections = [
-        { name: 'amazon', buttonSelector: '.add-btn[onclick*="amazon"]' },
-        { name: 'yamato', buttonSelector: '.add-btn[onclick*="yamato"]' },
+        { name: 'main', buttonSelector: '.add-btn[onclick*="main"]' },
         { name: 'deduct', buttonSelector: '.add-btn[onclick*="deduct"]' }
     ];
 
@@ -202,8 +257,8 @@ function updateAddButtonPositions() {
                 const headerRow = targetHeader.querySelector('tr.section-row');
                 if (headerRow) {
                     const headerRect = headerRow.getBoundingClientRect();
-                    addBtn.style.left = '6px';
-                    addBtn.style.top = (headerRect.bottom - tableRect.top + 6) + 'px';
+                    // セクションヘッダーの底部（区切り線の位置）に配置
+                    addBtn.style.top = (headerRect.bottom - tableRect.top - 10) + 'px';
                 }
             }
         } else {
@@ -213,8 +268,8 @@ function updateAddButtonPositions() {
 
             if (firstCell) {
                 const cellRect = firstCell.getBoundingClientRect();
-                addBtn.style.left = '6px';
-                addBtn.style.top = (cellRect.bottom - tableRect.top + 6) + 'px';
+                // 最後の行の下に配置（行と重ならないように）
+                addBtn.style.top = (cellRect.bottom - tableRect.top - 10) + 'px';
             }
         }
     });
@@ -316,7 +371,12 @@ function saveData() {
         notes: q('#p_notes').innerHTML,
 
         // テーブルデータ
-        tableData: getDataFromTables()
+        tableData: getDataFromTables(),
+
+        // セクション選択データ
+        sectionSelections: {
+            main: document.querySelector('.section-select[data-section="main"]')?.value || 'Amazon'
+        }
     };
     localStorage.setItem('invoice_direct_edit_v1', JSON.stringify(data));
 }
@@ -355,6 +415,12 @@ function loadTemp() {
             setDataToTables(d.tableData);
         }
 
+        // セクション選択を復元
+        if (d.sectionSelections) {
+            const mainSelect = document.querySelector('.section-select[data-section="main"]');
+            if (mainSelect) mainSelect.value = d.sectionSelections.main || 'Amazon';
+        }
+
         render();
         return;
     }
@@ -371,8 +437,7 @@ function loadTemp() {
 
         // 古いアイテム形式をテーブル形式に変換
         const tableData = {
-            amazon: d.amazon || [],
-            yamato: d.yamato || [],
+            main: (d.amazon || []).concat(d.yamato || []), // amazonとyamatoを統合
             deduct: d.deduct || []
         };
         setDataToTables(tableData);
@@ -428,10 +493,10 @@ function initializeApp() {
 
     // イベントリスナーを設定
     setupEditListeners();
+    setupSectionSelectors();
 
     // 初期テーブル行を追加（各セクションに1行ずつ）
-    addTableRow('amazon');
-    addTableRow('yamato');
+    addTableRow('main');
     addTableRow('deduct');
 
     calculateTotals();
@@ -449,6 +514,14 @@ function setupEditListeners() {
                 el.blur();
             }
         });
+    });
+}
+
+// セクション選択機能を設定
+function setupSectionSelectors() {
+    const sectionSelectors = document.querySelectorAll('.section-select');
+    sectionSelectors.forEach(select => {
+        select.addEventListener('change', saveData);
     });
 }
 

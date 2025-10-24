@@ -105,11 +105,14 @@
                             </tr>
                         </thead>
                         <tbody class="section-group">
-                            <!-- Amazonセクション -->
+                            <!-- 統合セクション -->
                             <tr class="section-row">
                                 <td class="section-name-cell">
-                                    <div class="inner">Amazon</div>
-                                    <button class="add-btn hide-print" onclick="addTableRow('amazon')"
+                                    <select class="inner section-select" data-section="main">
+                                        <option value="Amazon" selected>Amazon</option>
+                                        <option value="ヤマト運輸">ヤマト運輸</option>
+                                    </select>
+                                    <button class="add-btn hide-print" onclick="addTableRow('main')"
                                         title="行を追加">+</button>
                                 </td>
                                 <td class="section-empty-cell"></td>
@@ -117,22 +120,7 @@
                                 <td class="section-empty-cell"></td>
                             </tr>
                         </tbody>
-                        <tbody id="p_amazon"></tbody>
-
-                        <tbody class="section-group">
-                            <!-- ヤマト運輸セクション -->
-                            <tr class="section-row">
-                                <td class="section-name-cell">
-                                    <div class="inner">ヤマト運輸</div>
-                                    <button class="add-btn hide-print" onclick="addTableRow('yamato')"
-                                        title="行を追加">+</button>
-                                </td>
-                                <td class="section-empty-cell"></td>
-                                <td class="section-empty-cell"></td>
-                                <td class="section-empty-cell"></td>
-                            </tr>
-                        </tbody>
-                        <tbody id="p_yamato"></tbody>
+                        <tbody id="p_main"></tbody>
 
                         <tbody class="section-group">
                             <!-- 控除セクション -->
