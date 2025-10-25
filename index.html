@@ -19,11 +19,38 @@
                 <h1 style="margin:0;font-size:18px;">請求書作成システム</h1>
             </div>
             <div class="control-right">
-                <button class="btn small ghost" id="loadBtn">読込</button>
-                <button class="btn small ghost" id="saveBtn">保存</button>
                 <button class="btn primary" id="pdfBtn">PDFダウンロード</button>
                 <button class="btn" id="printBtn">印刷</button>
-                <button class="btn ghost" id="clearBtn">初期化</button>
+            </div>
+        </div>
+
+        <!-- 請求先・請求元入力エリア -->
+        <div class="invoice-parties-container">
+            <div class="party-box">
+                <div class="party-label">請求元</div>
+                <input type="text" id="fromParty" class="party-input" placeholder="株式会社ACE CREATION"
+                    value="株式会社ACE CREATION" readonly style="background-color: #f5f5f5; cursor: not-allowed;">
+            </div>
+
+            <div class="arrow-container">
+                <svg class="arrow-svg" viewBox="0 0 100 40" preserveAspectRatio="none">
+                    <defs>
+                        <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+                            <polygon points="0 0, 10 3, 0 6" fill="#111" />
+                        </marker>
+                    </defs>
+                    <line x1="0" y1="20" x2="100" y2="20" stroke="#111" stroke-width="2" marker-end="url(#arrowhead)" />
+                </svg>
+                <button class="swap-btn" id="swapPartiesBtn" title="請求先と請求元を入れ替え">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M7 16V4M7 4L3 8M7 4L11 8M17 8V20M17 20L21 16M17 20L13 16" />
+                    </svg>
+                </button>
+            </div>
+
+            <div class="party-box">
+                <div class="party-label">請求先</div>
+                <input type="text" id="toParty" class="party-input" placeholder="株式会社">
             </div>
         </div>
 
@@ -35,29 +62,12 @@
                     <div class="meta">
                         <div class="box to-box">
                             <div class="to-name">
-                                <span id="p_toCompany" contenteditable="true" class="editable">株式会社</span>
+                                <span id="p_toCompany" contenteditable="true" class="editable"></span>
                                 <span id="p_honorific_clickable" contenteditable="false"
                                     title="クリックで御中/様を切り替え">御中</span>
                             </div>
                             <div class="kv">
-                                <div id="p_toAddr" contenteditable="true" class="editable" title="ダブルクリックで郵便番号検索">
-                                    〒<br />（住所）</div>
-                            </div>
-                            <!-- 隠し郵便番号入力フィールド -->
-                            <div id="postal_input_modal">
-                                <div class="postal-modal-title">郵便番号から住所を検索</div>
-                                <div class="postal-input-row">
-                                    <span>〒</span>
-                                    <input type="text" id="postal_code_1" class="postal-code-input" maxlength="3"
-                                        placeholder="000">
-                                    <span>-</span>
-                                    <input type="text" id="postal_code_2" class="postal-code-input" maxlength="4"
-                                        placeholder="0000">
-                                </div>
-                                <div class="postal-button-row">
-                                    <button id="address_lookup_btn" class="postal-button">住所検索</button>
-                                    <button id="postal_modal_close" class="postal-button">閉じる</button>
-                                </div>
+                                <div id="p_toAddr" contenteditable="true" class="editable"></div>
                             </div>
                             <div class="kv greeting-section">
                                 <div id="p_greeting" class="readonly-field">下記の通りご請求申し上げます。</div>
@@ -74,15 +84,11 @@
                             </div>
                             <div class="kv" style="margin-top:14px">
                                 <div style="font-size:16px; font-weight:600; margin-top:4px;" id="p_fromName"
-                                    class="editable">
-                                    株式会社ACE CREATION</div>
-                                <div id="p_fromAddr" contenteditable="true" class="editable">
-                                    〒615-0904<br />京都市右京区梅津堤上町21 KKハウスⅡ 101</div>
-                                <div>電話：<span id="p_fromTel" contenteditable="true"
-                                        class="editable">080-9540-4451</span>
+                                    class="editable"></div>
+                                <div id="p_fromAddr" contenteditable="true" class="editable"></div>
+                                <div>電話：<span id="p_fromTel" contenteditable="true" class="editable"></span>
                                 </div>
-                                <div>登録番号：<span id="p_fromReg" contenteditable="true"
-                                        class="editable">T6130001080238</span>
+                                <div>登録番号：<span id="p_fromReg" contenteditable="true" class="editable"></span>
                                 </div>
                             </div>
                         </div>
@@ -98,26 +104,27 @@
                     <table class="tbl">
                         <thead>
                             <tr>
-                                <th style="width: 50%;">摘要</th>
-                                <th style="width: 15%;">数量</th>
-                                <th style="width: 20%;">単価</th>
-                                <th style="width: 15%;">金額</th>
+                                <th style="width: 55%;">摘要</th>
+                                <th style="width: 12%;">数量</th>
+                                <th style="width: 12%;">単価</th>
+                                <th style="width: 21%;">金額</th>
                             </tr>
                         </thead>
                         <tbody class="section-group">
                             <!-- 統合セクション -->
                             <tr class="section-row">
-                                <td class="section-name-cell">
-                                    <select class="inner section-select" data-section="main">
-                                        <option value="Amazon" selected>Amazon</option>
-                                        <option value="ヤマト運輸">ヤマト運輸</option>
-                                    </select>
-                                    <button class="add-btn hide-print" onclick="addTableRow('main')"
-                                        title="行を追加">+</button>
+                                <td class="section-name-cell" colspan="4">
+                                    <div class="section-header-wrapper">
+                                        <div class="section-header-content">
+                                            <select class="inner section-select" data-section="main">
+                                                <option value="Amazon" selected>Amazon</option>
+                                                <option value="ヤマト運輸">ヤマト運輸</option>
+                                            </select>
+                                        </div>
+                                        <button class="add-row-btn hide-print"
+                                            onclick="addTableRow('main')">行を追加</button>
+                                    </div>
                                 </td>
-                                <td class="section-empty-cell"></td>
-                                <td class="section-empty-cell"></td>
-                                <td class="section-empty-cell"></td>
                             </tr>
                         </tbody>
                         <tbody id="p_main"></tbody>
@@ -125,14 +132,15 @@
                         <tbody class="section-group">
                             <!-- 控除セクション -->
                             <tr class="section-row">
-                                <td class="section-name-cell">
-                                    <div class="inner">控除</div>
-                                    <button class="add-btn hide-print" onclick="addTableRow('deduct')"
-                                        title="行を追加">+</button>
+                                <td class="section-name-cell" colspan="4">
+                                    <div class="section-header-wrapper">
+                                        <div class="section-header-content">
+                                            <div class="inner">控除</div>
+                                        </div>
+                                        <button class="add-row-btn hide-print"
+                                            onclick="addTableRow('deduct')">行を追加</button>
+                                    </div>
                                 </td>
-                                <td class="section-empty-cell"></td>
-                                <td class="section-empty-cell"></td>
-                                <td class="section-empty-cell"></td>
                             </tr>
                         </tbody>
                         <tbody id="p_deduct"></tbody>

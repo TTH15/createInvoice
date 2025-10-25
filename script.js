@@ -1,8 +1,13 @@
-const fmt = (n, cur) => (cur || "¥") + Number(n || 0).toLocaleString();
-const state = {
-    main: [], deduct: []
-};
 const q = sel => document.querySelector(sel);
+const fmt = (n, cur) => (cur || "¥") + Number(n || 0).toLocaleString();
+
+// ACE CREATIONの固定情報
+const ACE_CREATION = {
+    name: '株式会社ACE CREATION',
+    address: '〒615-0904<br />京都市右京区梅津堤上町21 KKハウスⅡ 101',
+    tel: '080-9540-4451',
+    regNo: 'T6130001080238'
+};
 
 // テーブルに行を追加する新しい関数
 function addTableRow(kind) {
@@ -99,10 +104,10 @@ function addYenSymbolToInput(input, type) {
         yenSymbol.style.top = '50%';
         yenSymbol.style.transform = 'translateY(-50%)';
         yenSymbol.style.pointerEvents = 'none';
-        yenSymbol.style.color = '#666';
+        yenSymbol.style.color = '#000';  // 黒色に変更
         yenSymbol.style.fontSize = '14px';
         parentTd.appendChild(yenSymbol);
-        input.style.paddingLeft = '16px';
+        input.style.paddingLeft = '18px';
     } else {
         input.style.paddingLeft = '';
     }
@@ -226,71 +231,15 @@ function setDataToTables(data) {
     updateAddButtonPositions(); // データ設定後にボタン位置を更新
 }
 
-// 追加ボタンの位置を更新する関数
+// 追加ボタンの位置を更新する関数（もう使用しない - ボタンはセクションヘッダー内に固定）
 function updateAddButtonPositions() {
-    const sections = [
-        { name: 'main', buttonSelector: '.add-btn[onclick*="main"]' },
-        { name: 'deduct', buttonSelector: '.add-btn[onclick*="deduct"]' }
-    ];
-
-    sections.forEach(section => {
-        const tbody = q('#p_' + section.name);
-        const addBtn = document.querySelector(section.buttonSelector);
-
-        if (!addBtn || !tbody) return;
-
-        const rows = tbody.querySelectorAll('tr');
-        const tableRect = q('.tbl').getBoundingClientRect();
-
-        if (rows.length === 0) {
-            // データ行がない場合はセクションヘッダー行の下に配置
-            const sectionHeaders = document.querySelectorAll('tbody.section-group');
-            let targetHeader = null;
-
-            // 該当するセクションヘッダーを見つける
-            sectionHeaders.forEach(header => {
-                const btn = header.querySelector(section.buttonSelector);
-                if (btn) targetHeader = header;
-            });
-
-            if (targetHeader) {
-                const headerRow = targetHeader.querySelector('tr.section-row');
-                if (headerRow) {
-                    const headerRect = headerRow.getBoundingClientRect();
-                    // セクションヘッダーの底部（区切り線の位置）に配置
-                    addBtn.style.top = (headerRect.bottom - tableRect.top - 10) + 'px';
-                }
-            }
-        } else {
-            // データ行がある場合は最後の行の左下に配置
-            const lastRow = rows[rows.length - 1];
-            const firstCell = lastRow.querySelector('td');
-
-            if (firstCell) {
-                const cellRect = firstCell.getBoundingClientRect();
-                // 最後の行の下に配置（行と重ならないように）
-                addBtn.style.top = (cellRect.bottom - tableRect.top - 10) + 'px';
-            }
-        }
-    });
+    // ボタンは今やセクションヘッダー内に配置されているため、この関数は不要
+    // 互換性のため空の関数として残す
 }
 
-function ymd(dateStr) {
-    if (!dateStr) return '----年--月--日';
-    const d = new Date(dateStr);
-    return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`;
-}
-
-// 簡素化されたrender関数（プレビュー直接編集なので最小限）
+// render関数
 function render() {
-    // 初期値の設定のみ（編集可能要素は直接編集されるため）
-    if (!q('#p_toName').textContent.trim()) {
-        q('#p_toName').textContent = '株式会社 御中';
-    }
-    if (!q('#p_fromName').textContent.trim()) {
-        q('#p_fromName').textContent = '株式会社ACE CREATION';
-    }
-    // 計算の更新
+    // 計算の更新のみ（初期値はsyncPartiesToInvoiceで設定される）
     calculateTotals();
 }
 
@@ -313,25 +262,77 @@ async function downloadPDF() {
     });
 
     try {
-        // 少し待ってからキャプチャ（レンダリング完了を待つ）
-        await new Promise(resolve => setTimeout(resolve, 100));
+        // レンダリング完了を十分に待つ
+        await new Promise(resolve => setTimeout(resolve, 500));
 
         // html2canvasでキャプチャ
         const canvas = await html2canvas(sheet, {
-            scale: 2,
+            scale: 4,              // 高解像度化（4倍）
             useCORS: true,
             allowTaint: true,
             backgroundColor: '#ffffff',
+            logging: false,
+            windowWidth: sheet.scrollWidth,
+            windowHeight: sheet.scrollHeight,
+            width: sheet.scrollWidth,
+            height: sheet.scrollHeight,
+            scrollX: 0,
+            scrollY: 0,
+            x: 0,
+            y: 0,
+            letterRendering: true,
+            foreignObjectRendering: false,
             ignoreElements: (element) => {
                 // ボタン要素を完全に無視
                 return element.tagName === 'BUTTON' ||
                     element.classList.contains('btn') ||
-                    element.classList.contains('add-btn');
+                    element.classList.contains('add-btn') ||
+                    element.classList.contains('add-row-btn');
+            },
+            onclone: (clonedDoc) => {
+                // クローンされたドキュメントのスタイルを調整
+                const clonedSheet = clonedDoc.querySelector('#sheet');
+                if (clonedSheet) {
+                    clonedSheet.style.width = '210mm';
+                    clonedSheet.style.height = '297mm';
+                    clonedSheet.style.transform = 'none';
+                    clonedSheet.style.overflow = 'visible';
+                }
+
+                // すべてのボタンを非表示に
+                const buttons = clonedDoc.querySelectorAll('button, .btn, .add-btn, .add-row-btn');
+                buttons.forEach(btn => {
+                    btn.style.display = 'none';
+                    btn.style.visibility = 'hidden';
+                });
+
+                // セクション名の行の高さを微調整
+                const sectionRows = clonedDoc.querySelectorAll('.section-row');
+                sectionRows.forEach(row => {
+                    row.style.height = 'auto';
+                    row.style.lineHeight = '1.8';
+                });
+
+                // セクション名セルのパディングを調整
+                const sectionCells = clonedDoc.querySelectorAll('.section-name-cell');
+                sectionCells.forEach(cell => {
+                    cell.style.paddingTop = '10px';
+                    cell.style.paddingBottom = '10px';
+                });
+
+                // セクションヘッダーのコンテンツに余白を追加
+                const sectionContents = clonedDoc.querySelectorAll('.section-header-content');
+                sectionContents.forEach(content => {
+                    content.style.paddingTop = '4px';
+                    content.style.paddingBottom = '4px';
+                });
             }
         });
 
-        const imgData = canvas.toDataURL('image/png');
+        const imgData = canvas.toDataURL('image/png', 1.0);
         const pdf = new jsPDF('p', 'mm', 'a4');
+
+        // 画像をA4サイズに正確にフィット
         pdf.addImage(imgData, 'PNG', 0, 0, 210, 297);
         pdf.save('invoice.pdf');
     } finally {
@@ -350,7 +351,7 @@ async function downloadPDF() {
 function saveData() {
     const data = {
         // ヘッダー情報
-        toName: q('#p_toName').textContent,
+        toName: q('#p_toCompany')?.textContent || '',
         toAddr: q('#p_toAddr').innerHTML,
         subject: q('#p_subject').textContent,
         issueDate: q('#p_issueDate').textContent,
@@ -376,89 +377,189 @@ function saveData() {
         // セクション選択データ
         sectionSelections: {
             main: document.querySelector('.section-select[data-section="main"]')?.value || 'Amazon'
+        },
+
+        // 請求先・請求元データ
+        parties: {
+            fromParty: q('#fromParty')?.value || ACE_CREATION.name,
+            toParty: q('#toParty')?.value || ''
         }
     };
     localStorage.setItem('invoice_direct_edit_v1', JSON.stringify(data));
 }
 
-// 互換性のためのsaveTemp関数
-function saveTemp() {
-    saveData();
-}
 
-function loadTemp() {
-    // 新しい形式のデータを試す
-    let j = localStorage.getItem('invoice_direct_edit_v1');
-    if (j) {
-        const d = JSON.parse(j);
-        // プレビュー要素に直接設定
-        q('#p_toName').textContent = d.toName || '株式会社 御中';
-        q('#p_toAddr').innerHTML = d.toAddr || '〒<br />（住所）';
-        q('#p_subject').textContent = d.subject || '2025年8月稼働分';
-        q('#p_issueDate').textContent = d.issueDate || '2025年 月 日';
-        q('#p_invoiceNo').textContent = d.invoiceNo || '###########';
-        q('#p_billAmountDisplay').textContent = d.billAmountDisplay || '￥ --------（税込）';
+// 請求先・請求元の同期関数
+function syncPartiesToInvoice() {
+    const fromPartyInput = q('#fromParty');
+    const toPartyInput = q('#toParty');
 
-        q('#p_fromName').textContent = d.fromName || '株式会社ACE CREATION';
-        q('#p_fromAddr').innerHTML = d.fromAddr || '〒615-0904<br />京都市右京区梅津堤上町21<br />KKハウスⅡ 101号室';
-        q('#p_fromTel').textContent = d.fromTel || '080-9540-4451';
-        q('#p_fromReg').textContent = d.fromReg || 'T6130001080238';
-
-        q('#p_dueDate').textContent = d.dueDate || '----年--月--日';
-        q('#p_bankName').textContent = d.bankName || '';
-        q('#p_bankNo').textContent = d.bankNo || '';
-        q('#p_bankHolder').textContent = d.bankHolder || '';
-        q('#p_notes').innerHTML = d.notes || '';
-
-        // テーブルデータを設定
-        if (d.tableData) {
-            setDataToTables(d.tableData);
-        }
-
-        // セクション選択を復元
-        if (d.sectionSelections) {
-            const mainSelect = document.querySelector('.section-select[data-section="main"]');
-            if (mainSelect) mainSelect.value = d.sectionSelections.main || 'Amazon';
-        }
-
-        render();
+    if (!fromPartyInput || !toPartyInput) {
+        console.warn('請求先・請求元の入力欄が見つかりません');
         return;
     }
 
-    // 古い形式のデータへのフォールバック
-    j = localStorage.getItem('invoice_simple_v1');
-    if (j) {
-        const d = JSON.parse(j);
-        // 古いデータを新しい形式に変換
-        q('#p_toName').textContent = d.toName || '株式会社 御中';
-        q('#p_toAddr').innerHTML = (d.toAddr || '〒\n（住所）').replace(/\n/g, '<br/>');
-        q('#p_subject').textContent = d.subject || '2025年8月稼働分';
-        // ... 他のフィールドも同様に変換
+    const fromParty = fromPartyInput.value || '';
+    const toParty = toPartyInput.value || '';
 
-        // 古いアイテム形式をテーブル形式に変換
-        const tableData = {
-            main: (d.amazon || []).concat(d.yamato || []), // amazonとyamatoを統合
-            deduct: d.deduct || []
-        };
-        setDataToTables(tableData);
+    // 請求先（to）を更新
+    const toCompanyElem = q('#p_toCompany');
+    const toAddrElem = q('#p_toAddr');
 
-        render();
+    if (toCompanyElem && toAddrElem) {
+        if (toParty === ACE_CREATION.name) {
+            // ACE CREATIONが請求先の場合
+            toCompanyElem.textContent = ACE_CREATION.name;
+            toAddrElem.innerHTML = ACE_CREATION.address;
+            // 請求元のplaceholderを空にする
+            fromPartyInput.placeholder = '';
+        } else {
+            // 通常の請求先
+            toCompanyElem.textContent = toParty;
+            toAddrElem.innerHTML = toParty ? '' : ''; // 空欄に
+            // 請求元のplaceholderを復元
+            fromPartyInput.placeholder = '株式会社ACE CREATION';
+        }
+    }
+
+    // 請求元（from）を更新
+    const fromNameElem = q('#p_fromName');
+    const fromAddrElem = q('#p_fromAddr');
+    const fromTelElem = q('#p_fromTel');
+    const fromRegElem = q('#p_fromReg');
+
+    if (fromNameElem && fromAddrElem && fromTelElem && fromRegElem) {
+        if (fromParty === ACE_CREATION.name) {
+            // ACE CREATIONが請求元の場合（通常ケース）
+            fromNameElem.textContent = ACE_CREATION.name;
+            fromAddrElem.innerHTML = ACE_CREATION.address;
+            fromTelElem.textContent = ACE_CREATION.tel;
+            fromRegElem.textContent = ACE_CREATION.regNo;
+
+            // 請求先の住所を空欄に（ACE CREATIONでない場合）
+            if (toParty !== ACE_CREATION.name && toAddrElem) {
+                // 既存の住所を保持（手動編集されている可能性があるため）
+                if (!toAddrElem.innerHTML.trim() || toAddrElem.innerHTML === ACE_CREATION.address) {
+                    toAddrElem.innerHTML = '〒<br />（住所）';
+                }
+            }
+
+            // 請求先のplaceholderを復元
+            toPartyInput.placeholder = '株式会社';
+        } else {
+            // 他社が請求元の場合
+            fromNameElem.textContent = fromParty;
+            fromAddrElem.innerHTML = '';
+            fromTelElem.textContent = '';
+            fromRegElem.textContent = '';
+
+            // 請求先のplaceholderを空にする
+            toPartyInput.placeholder = '';
+        }
+    }
+
+    saveData();
+}
+
+// 請求先と請求元を入れ替える関数
+function swapParties() {
+    const fromPartyInput = q('#fromParty');
+    const toPartyInput = q('#toParty');
+
+    if (!fromPartyInput || !toPartyInput) return;
+
+    // readonlyを一時的に解除してから値を入れ替え
+    fromPartyInput.readOnly = false;
+    toPartyInput.readOnly = false;
+
+    // 値を入れ替え
+    const temp = fromPartyInput.value;
+    fromPartyInput.value = toPartyInput.value || '';
+    toPartyInput.value = temp;
+
+    // 請求書に反映と編集可否を更新
+    syncPartiesToInvoice();
+    updateInputStates();
+}
+
+// 入力欄の編集可否を制御
+function updateInputStates() {
+    const fromPartyInput = q('#fromParty');
+    const toPartyInput = q('#toParty');
+
+    if (fromPartyInput && toPartyInput) {
+        // ACE CREATIONが入っている方は常に編集不可
+        if (fromPartyInput.value === ACE_CREATION.name) {
+            // ACE CREATIONが請求元の場合
+            fromPartyInput.readOnly = true;
+            fromPartyInput.style.backgroundColor = '#f5f5f5';
+            fromPartyInput.style.cursor = 'not-allowed';
+
+            toPartyInput.readOnly = false;
+            toPartyInput.style.backgroundColor = '#fff';
+            toPartyInput.style.cursor = 'text';
+        } else if (toPartyInput.value === ACE_CREATION.name) {
+            // ACE CREATIONが請求先の場合
+            toPartyInput.readOnly = true;
+            toPartyInput.style.backgroundColor = '#f5f5f5';
+            toPartyInput.style.cursor = 'not-allowed';
+
+            fromPartyInput.readOnly = false;
+            fromPartyInput.style.backgroundColor = '#fff';
+            fromPartyInput.style.cursor = 'text';
+        }
     }
 }
 
-function clearAll() {
-    localStorage.removeItem('invoice_simple_v1');
-    location.reload();
+// キーボード入力も完全にブロック
+function preventAceCreationEdit(e) {
+    const input = e.target;
+    if (input.value === ACE_CREATION.name) {
+        e.preventDefault();
+        return false;
+    }
+}
+
+// 請求先・請求元入力欄のイベントリスナー
+function setupPartiesListeners() {
+    const fromPartyInput = q('#fromParty');
+    const toPartyInput = q('#toParty');
+    const swapBtn = q('#swapPartiesBtn');
+
+    if (fromPartyInput) {
+        fromPartyInput.addEventListener('keydown', preventAceCreationEdit);
+        fromPartyInput.addEventListener('keypress', preventAceCreationEdit);
+        fromPartyInput.addEventListener('paste', preventAceCreationEdit);
+        fromPartyInput.addEventListener('input', () => {
+            syncPartiesToInvoice();
+            updateInputStates();
+        });
+    }
+
+    if (toPartyInput) {
+        toPartyInput.addEventListener('keydown', preventAceCreationEdit);
+        toPartyInput.addEventListener('keypress', preventAceCreationEdit);
+        toPartyInput.addEventListener('paste', preventAceCreationEdit);
+        toPartyInput.addEventListener('input', () => {
+            syncPartiesToInvoice();
+            updateInputStates();
+        });
+    }
+
+    if (swapBtn) {
+        swapBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            swapParties();
+        });
+    }
+
+    updateInputStates();
 }
 
 // イベントリスナー設定
 q('#pdfBtn').onclick = downloadPDF;
 q('#printBtn').onclick = () => window.print();
-q('#saveBtn').onclick = saveData;
-q('#loadBtn').onclick = loadTemp;
-q('#clearBtn').onclick = clearAll;
-
-// 古い関数群は削除済み
 
 // 初期化関数
 function initializeApp() {
@@ -466,41 +567,24 @@ function initializeApp() {
     q('#p_greeting').textContent = '下記の通りご請求申し上げます。';
 
     // 初期値を設定
-    if (!q('#p_toName').textContent.trim()) {
-        q('#p_toName').textContent = '株式会社 御中';
-    }
-    if (!q('#p_toAddr').innerHTML.trim()) {
-        q('#p_toAddr').innerHTML = '〒<br />（住所）';
-    }
     if (!q('#p_subject').textContent.trim()) {
         q('#p_subject').textContent = '2025年8月稼働分';
-    }
-    if (!q('#p_fromName').textContent.trim()) {
-        q('#p_fromName').textContent = '株式会社ACE CREATION';
-    }
-    if (!q('#p_fromAddr').innerHTML.trim()) {
-        q('#p_fromAddr').innerHTML = '〒615-0904<br />京都市右京区梅津堤上町21<br />KKハウスⅡ 101号室';
-    }
-    if (!q('#p_fromTel').textContent.trim()) {
-        q('#p_fromTel').textContent = '080-9540-4451';
-    }
-    if (!q('#p_fromReg').textContent.trim()) {
-        q('#p_fromReg').textContent = 'T6130001080238';
-    }
-    if (!q('#p_billAmountDisplay').textContent.trim()) {
-        q('#p_billAmountDisplay').textContent = '￥ --------（税込）';
     }
 
     // イベントリスナーを設定
     setupEditListeners();
     setupSectionSelectors();
+    setupPartiesListeners();
 
-    // 初期テーブル行を追加（各セクションに1行ずつ）
+    // 初期同期
+    syncPartiesToInvoice();
+    updateInputStates();
+
+    // 初期テーブル行を追加
     addTableRow('main');
     addTableRow('deduct');
 
     calculateTotals();
-    updateAddButtonPositions(); // 初期化時にボタン位置を設定
 }
 
 // 編集要素にイベントリスナーを設定
@@ -527,213 +611,42 @@ function setupSectionSelectors() {
 
 // 敬称選択機能（クリック切り替え式）
 function setupHonorificSelector() {
-    console.log('敬称機能の初期化開始');
-
-    // DOMが完全に読み込まれるまで少し待つ
     setTimeout(() => {
         const honorificClickable = document.getElementById('p_honorific_clickable');
-        console.log('敬称要素:', honorificClickable);
+        if (!honorificClickable) return;
 
-        if (honorificClickable) {
-            let currentHonorific = honorificClickable.textContent.trim() || '御中';
-            console.log('初期敬称:', currentHonorific);
+        let currentHonorific = honorificClickable.textContent.trim() || '御中';
 
-            // クリックイベントを設定
-            honorificClickable.onclick = function (e) {
-                e.preventDefault();
-                e.stopPropagation();
-                console.log('敬称クリック検出:', currentHonorific);
+        honorificClickable.onclick = function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            currentHonorific = currentHonorific === '御中' ? '様' : '御中';
+            this.textContent = currentHonorific;
+            saveData();
+            return false;
+        };
 
-                // 御中 ⇔ 様 の切り替え
-                currentHonorific = currentHonorific === '御中' ? '様' : '御中';
-                this.textContent = currentHonorific;
-                console.log('敬称変更完了:', currentHonorific);
+        honorificClickable.onmouseenter = function () {
+            this.style.backgroundColor = '#f0f8ff';
+        };
 
-                // データ保存（存在する場合）
-                if (typeof saveData === 'function') {
-                    saveData();
-                }
-
-                return false;
-            };
-
-            // マウスオーバー効果をJavaScriptでも設定
-            honorificClickable.onmouseenter = function () {
-                this.style.backgroundColor = '#f0f8ff';
-            };
-
-            honorificClickable.onmouseleave = function () {
-                this.style.backgroundColor = 'transparent';
-            };
-
-            console.log('敬称機能初期化完了');
-        } else {
-            console.error('敬称要素が見つかりません - ID: p_honorific_clickable');
-        }
+        honorificClickable.onmouseleave = function () {
+            this.style.backgroundColor = 'transparent';
+        };
     }, 100);
 }
 
-// 郵便番号API機能（モーダル式）
-function setupPostalCodeLookup() {
-    const toAddr = q('#p_toAddr');
-    const postalModal = q('#postal_input_modal');
-    const postalCode1 = q('#postal_code_1');
-    const postalCode2 = q('#postal_code_2');
-    const lookupBtn = q('#address_lookup_btn');
-    const closeBtn = q('#postal_modal_close');
 
-    console.log('郵便番号要素チェック:', {
-        toAddr, postalModal, postalCode1, postalCode2, lookupBtn, closeBtn
-    }); // デバッグ用
-
-    if (!toAddr || !postalModal || !postalCode1 || !postalCode2 || !lookupBtn || !closeBtn) {
-        console.error('郵便番号機能：必要な要素が見つかりません');
-        return;
-    }
-
-    // 住所欄をダブルクリックでモーダルを開く
-    toAddr.addEventListener('dblclick', function (e) {
-        e.preventDefault();
-        console.log('住所欄ダブルクリック'); // デバッグ用
-        postalModal.style.display = 'block';
-        postalCode1.focus();
-    });
-
-    // 閉じるボタン
-    closeBtn.addEventListener('click', function () {
-        postalModal.style.display = 'none';
-    });
-
-    // モーダル外をクリックして閉じる
-    document.addEventListener('click', function (e) {
-        if (postalModal.style.display === 'block' && !postalModal.contains(e.target) && e.target !== toAddr) {
-            postalModal.style.display = 'none';
-        }
-    });
-
-    // 郵便番号の入力制限（数字のみ）
-    [postalCode1, postalCode2].forEach((input, index) => {
-        // 数字のみ入力制限
-        input.addEventListener('input', function (e) {
-            const oldValue = this.value;
-            this.value = this.value.replace(/[^0-9]/g, '');
-            if (oldValue !== this.value) {
-                console.log(`郵便番号${index + 1}：数字以外を除去`); // デバッグ用
-            }
-        });
-
-        // キー入力時の処理
-        input.addEventListener('keydown', function (e) {
-            // バックスペース、デリート、タブ、矢印キーなどは許可
-            if ([8, 9, 27, 46, 37, 38, 39, 40].includes(e.keyCode) ||
-                // Ctrl+A, Ctrl+C, Ctrl+V, Ctrl+X を許可
-                (e.ctrlKey === true && [65, 67, 86, 88].includes(e.keyCode))) {
-                return;
-            }
-
-            // Enterキーで次の入力欄へ
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                if (this === postalCode1 && postalCode1.value.length === 3) {
-                    postalCode2.focus();
-                } else if (this === postalCode2 && postalCode2.value.length === 4) {
-                    lookupBtn.click();
-                }
-                return;
-            }
-
-            // 数字以外は入力を阻止
-            if ((e.keyCode < 48 || e.keyCode > 57) && (e.keyCode < 96 || e.keyCode > 105)) {
-                e.preventDefault();
-                console.log('数字以外の入力をブロック:', e.key); // デバッグ用
-            }
-        });
-
-        console.log(`郵便番号入力${index + 1}：イベントリスナー設定完了`); // デバッグ用
-    });
-
-    // 住所検索ボタンのクリックイベント
-    lookupBtn.addEventListener('click', async function () {
-        const code1 = postalCode1.value;
-        const code2 = postalCode2.value;
-        console.log('住所検索開始:', code1, code2); // デバッグ用
-
-        if (code1.length !== 3 || code2.length !== 4) {
-            alert('郵便番号を正しく入力してください（例：123-4567）');
-            console.log('郵便番号形式エラー'); // デバッグ用
-            return;
-        }
-
-        const postalCode = code1 + code2;
-        console.log('検索郵便番号:', postalCode); // デバッグ用
-
-        try {
-            lookupBtn.textContent = '検索中...';
-            lookupBtn.disabled = true;
-
-            // zipcloud APIを使用
-            const response = await fetch(`https://zipcloud.ibsnet.co.jp/api/search?zipcode=${postalCode}`);
-            const data = await response.json();
-
-            if (data.status === 200 && data.results && data.results.length > 0) {
-                const result = data.results[0];
-                const fullAddress = `〒${code1}-${code2}<br>${result.address1}${result.address2}${result.address3}`;
-                toAddr.innerHTML = fullAddress;
-                saveData();
-                postalModal.style.display = 'none';
-                // 入力欄をクリア
-                postalCode1.value = '';
-                postalCode2.value = '';
-            } else {
-                alert('該当する住所が見つかりませんでした。');
-            }
-        } catch (error) {
-            console.error('住所検索エラー:', error);
-            alert('住所検索でエラーが発生しました。');
-        } finally {
-            lookupBtn.textContent = '住所検索';
-            lookupBtn.disabled = false;
-        }
-    });
+// 初期化
+function initialize() {
+    initializeApp();
+    setupHonorificSelector();
+    render();
 }
 
-// 初期化関数
-function initializeAllFunctions() {
-    console.log('全機能の初期化開始');
-
-    try {
-        initializeApp();
-        console.log('アプリ初期化完了');
-    } catch (e) {
-        console.error('アプリ初期化エラー:', e);
-    }
-
-    try {
-        setupHonorificSelector();
-        console.log('敬称機能初期化完了');
-    } catch (e) {
-        console.error('敬称機能初期化エラー:', e);
-    }
-
-    try {
-        setupPostalCodeLookup();
-        console.log('郵便番号機能初期化完了');
-    } catch (e) {
-        console.error('郵便番号機能初期化エラー:', e);
-    }
-
-    try {
-        render();
-        console.log('レンダリング完了');
-    } catch (e) {
-        console.error('レンダリングエラー:', e);
-    }
-}
-
-// DOMが完全に読み込まれてから初期化
-document.addEventListener('DOMContentLoaded', initializeAllFunctions);
-
-// もし既にDOMが読み込まれている場合（即座に実行）
-if (document.readyState !== 'loading') {
-    initializeAllFunctions();
+// DOMロード時に初期化
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initialize);
+} else {
+    initialize();
 }
