@@ -6,8 +6,84 @@ const ACE_CREATION = {
     name: '株式会社ACE CREATION',
     address: '〒615-0904<br />京都市右京区梅津堤上町21 KKハウスⅡ 101',
     tel: '080-9540-4451',
-    regNo: 'T6130001080238'
+    regNo: 'T6130001080238',
+    entityType: 'both' // 法人・個人どちらでも選択可能
 };
+
+// アドレス帳管理
+class AddressBook {
+    constructor() {
+        this.storageKey = 'invoice_address_book';
+        this.addresses = this.loadAddresses();
+    }
+
+    // アドレス帳をローカルストレージから読み込み
+    loadAddresses() {
+        try {
+            const data = localStorage.getItem(this.storageKey);
+            return data ? JSON.parse(data) : [];
+        } catch (error) {
+            console.error('アドレス帳の読み込みエラー:', error);
+            return [];
+        }
+    }
+
+    // アドレス帳をローカルストレージに保存
+    saveAddresses() {
+        try {
+            localStorage.setItem(this.storageKey, JSON.stringify(this.addresses));
+        } catch (error) {
+            console.error('アドレス帳の保存エラー:', error);
+        }
+    }
+
+    // 新しいアドレスを追加
+    addAddress(address) {
+        // 会社名と種別の重複チェック
+        const existingIndex = this.addresses.findIndex(addr =>
+            addr.name === address.name && addr.entityType === address.entityType
+        );
+        if (existingIndex >= 0) {
+            // 既存のアドレスを更新
+            this.addresses[existingIndex] = { ...address, id: this.addresses[existingIndex].id };
+        } else {
+            // 新しいアドレスを追加
+            address.id = Date.now().toString();
+            this.addresses.push(address);
+        }
+        this.saveAddresses();
+        return address;
+    }
+
+    // 法人のアドレスのみ取得
+    getCorporateAddresses() {
+        return this.addresses.filter(addr => addr.entityType === 'corporate');
+    }
+
+    // 個人のアドレスのみ取得
+    getIndividualAddresses() {
+        return this.addresses.filter(addr => addr.entityType === 'individual');
+    }
+
+    // アドレスを削除
+    deleteAddress(id) {
+        this.addresses = this.addresses.filter(addr => addr.id !== id);
+        this.saveAddresses();
+    }
+
+    // アドレスを取得
+    getAddress(id) {
+        return this.addresses.find(addr => addr.id === id);
+    }
+
+    // すべてのアドレスを取得
+    getAllAddresses() {
+        return this.addresses;
+    }
+}
+
+// グローバルアドレス帳インスタンス
+const addressBook = new AddressBook();
 
 // テーブルに行を追加する新しい関数
 function addTableRow(kind) {
@@ -389,163 +465,203 @@ function saveData() {
 }
 
 
-// 請求先・請求元の同期関数
+// 請求先・請求元の同期関数（新しい選択機能対応）
 function syncPartiesToInvoice() {
-    const fromPartyInput = q('#fromParty');
-    const toPartyInput = q('#toParty');
+    const fromSelect = q('#fromPartySelect');
+    const toSelect = q('#toPartySelect');
 
-    if (!fromPartyInput || !toPartyInput) {
-        console.warn('請求先・請求元の入力欄が見つかりません');
+    if (!fromSelect || !toSelect) {
+        console.warn('請求先・請求元の選択欄が見つかりません');
         return;
     }
 
-    const fromParty = fromPartyInput.value || '';
-    const toParty = toPartyInput.value || '';
+    // 請求元の処理
+    let fromParty = '';
+    let fromData = null;
 
-    // 請求先（to）を更新
+    if (fromSelect.value === 'ace_creation') {
+        fromParty = ACE_CREATION.name;
+        fromData = ACE_CREATION;
+    } else if (fromSelect.value === 'new') {
+        fromParty = '新規のアドレス';
+        fromData = { name: fromParty };
+    } else {
+        const address = addressBook.getAddress(fromSelect.value);
+        if (address) {
+            fromParty = address.name;
+            fromData = address;
+        }
+    }
+
+    // 請求先の処理
+    let toParty = '';
+    let toData = null;
+
+    if (toSelect.value === 'ace_creation') {
+        toParty = ACE_CREATION.name;
+        toData = ACE_CREATION;
+    } else if (toSelect.value === 'new') {
+        toParty = '新規のアドレス';
+        toData = { name: toParty };
+    } else {
+        const address = addressBook.getAddress(toSelect.value);
+        if (address) {
+            toParty = address.name;
+            toData = address;
+        }
+    }
+
+    // 請求書の請求先（to）を更新
     const toCompanyElem = q('#p_toCompany');
     const toAddrElem = q('#p_toAddr');
 
     if (toCompanyElem && toAddrElem) {
-        if (toParty === ACE_CREATION.name) {
-            // ACE CREATIONが請求先の場合
-            toCompanyElem.textContent = ACE_CREATION.name;
+        toCompanyElem.textContent = toParty || '株式会社';
+
+        if (toData === ACE_CREATION) {
+            // ACE CREATIONが請求先の場合、電話番号と登録番号も表示
             toAddrElem.innerHTML = ACE_CREATION.address;
-            // 請求元のplaceholderを空にする
-            fromPartyInput.placeholder = '';
+        } else if (toData && toData.address) {
+            // アドレス帳からの住所
+            let addressHtml = '';
+            if (toData.postalCode) {
+                addressHtml += `〒${toData.postalCode}<br />`;
+            }
+            if (toData.address) {
+                addressHtml += toData.address;
+            }
+            toAddrElem.innerHTML = addressHtml || '〒<br />（住所）';
         } else {
-            // 通常の請求先
-            toCompanyElem.textContent = toParty;
-            toAddrElem.innerHTML = toParty ? '' : ''; // 空欄に
-            // 請求元のplaceholderを復元
-            fromPartyInput.placeholder = '株式会社ACE CREATION';
+            toAddrElem.innerHTML = '〒<br />（住所）';
         }
     }
 
-    // 請求元（from）を更新
+    // 請求書の請求元（from）を更新
     const fromNameElem = q('#p_fromName');
     const fromAddrElem = q('#p_fromAddr');
     const fromTelElem = q('#p_fromTel');
     const fromRegElem = q('#p_fromReg');
 
     if (fromNameElem && fromAddrElem && fromTelElem && fromRegElem) {
-        if (fromParty === ACE_CREATION.name) {
-            // ACE CREATIONが請求元の場合（通常ケース）
-            fromNameElem.textContent = ACE_CREATION.name;
+        fromNameElem.textContent = fromParty || '株式会社ACE CREATION';
+
+        const fromTelContainer = q('#p_fromTelContainer');
+        const fromRegContainer = q('#p_fromRegContainer');
+
+        if (fromData === ACE_CREATION) {
+            // ACE CREATIONが請求元の場合
             fromAddrElem.innerHTML = ACE_CREATION.address;
             fromTelElem.textContent = ACE_CREATION.tel;
             fromRegElem.textContent = ACE_CREATION.regNo;
 
-            // 請求先の住所を空欄に（ACE CREATIONでない場合）
-            if (toParty !== ACE_CREATION.name && toAddrElem) {
-                // 既存の住所を保持（手動編集されている可能性があるため）
-                if (!toAddrElem.innerHTML.trim() || toAddrElem.innerHTML === ACE_CREATION.address) {
-                    toAddrElem.innerHTML = '〒<br />（住所）';
-                }
+            // ACE CREATIONの場合は電話・登録番号を表示
+            if (fromTelContainer) fromTelContainer.style.display = 'block';
+            if (fromRegContainer) fromRegContainer.style.display = 'block';
+        } else if (fromData && fromData.address) {
+            // アドレス帳からの情報
+            let addressHtml = '';
+            if (fromData.postalCode) {
+                addressHtml += `〒${fromData.postalCode}<br />`;
+            }
+            if (fromData.address) {
+                addressHtml += fromData.address;
+            }
+            fromAddrElem.innerHTML = addressHtml || '';
+
+            // 電話番号・登録番号は値がある場合のみ表示
+            if (fromData.phone) {
+                fromTelElem.textContent = fromData.phone;
+                if (fromTelContainer) fromTelContainer.style.display = 'block';
+            } else {
+                fromTelElem.textContent = '';
+                if (fromTelContainer) fromTelContainer.style.display = 'none';
             }
 
-            // 請求先のplaceholderを復元
-            toPartyInput.placeholder = '株式会社';
+            if (fromData.invoiceNo) {
+                fromRegElem.textContent = fromData.invoiceNo;
+                if (fromRegContainer) fromRegContainer.style.display = 'block';
+            } else {
+                fromRegElem.textContent = '';
+                if (fromRegContainer) fromRegContainer.style.display = 'none';
+            }
         } else {
-            // 他社が請求元の場合
-            fromNameElem.textContent = fromParty;
             fromAddrElem.innerHTML = '';
             fromTelElem.textContent = '';
             fromRegElem.textContent = '';
 
-            // 請求先のplaceholderを空にする
-            toPartyInput.placeholder = '';
+            // 空の場合は非表示
+            if (fromTelContainer) fromTelContainer.style.display = 'none';
+            if (fromRegContainer) fromRegContainer.style.display = 'none';
+        }
+
+        // 請求元に応じて振込先情報を更新
+        if (fromData === ACE_CREATION) {
+            // ACE CREATIONの場合、固定の振込先情報を表示
+            const dueDateElem = q('#p_dueDate');
+            const bankNameElem = q('#p_bankName');
+            const bankNoElem = q('#p_bankNo');
+            const bankHolderElem = q('#p_bankHolder');
+
+            if (dueDateElem) dueDateElem.textContent = '2025年12月31日';
+            if (bankNameElem) bankNameElem.textContent = '京都信用金庫 梅津支店';
+            if (bankNoElem) bankNoElem.textContent = '普通 3058832';
+            if (bankHolderElem) bankHolderElem.textContent = '口座名義：カ)ｴｰｽｸﾘｴｲｼｮﾝ';
+        } else if (fromData && fromData.entityType === 'individual' && (fromData.bankName || fromData.bankNo || fromData.bankHolder)) {
+            // 個人の場合は登録された振込先情報を使用
+            const dueDateElem = q('#p_dueDate');
+            const bankNameElem = q('#p_bankName');
+            const bankNoElem = q('#p_bankNo');
+            const bankHolderElem = q('#p_bankHolder');
+
+            if (dueDateElem) dueDateElem.textContent = '2025年12月31日';
+            if (bankNameElem) bankNameElem.textContent = fromData.bankName || '';
+            if (bankNoElem) bankNoElem.textContent = fromData.bankNo || '';
+            if (bankHolderElem) bankHolderElem.textContent = fromData.bankHolder || '';
         }
     }
+
+    // ACE CREATIONが請求先の場合、電話番号と登録番号は表示しない（請求先には不要）
 
     saveData();
 }
 
-// 請求先と請求元を入れ替える関数
+
+// 請求先と請求元を入れ替える関数（新しい選択機能対応）
 function swapParties() {
-    const fromPartyInput = q('#fromParty');
-    const toPartyInput = q('#toParty');
+    const fromSelect = q('#fromPartySelect');
+    const toSelect = q('#toPartySelect');
 
-    if (!fromPartyInput || !toPartyInput) return;
+    if (!fromSelect || !toSelect) return;
 
-    // readonlyを一時的に解除してから値を入れ替え
-    fromPartyInput.readOnly = false;
-    toPartyInput.readOnly = false;
+    // 現在の値を取得
+    const fromValue = fromSelect.value;
+    const toValue = toSelect.value;
 
     // 値を入れ替え
-    const temp = fromPartyInput.value;
-    fromPartyInput.value = toPartyInput.value || '';
-    toPartyInput.value = temp;
+    fromSelect.value = toValue;
+    toSelect.value = fromValue;
 
-    // 請求書に反映と編集可否を更新
+    // 請求書に反映
     syncPartiesToInvoice();
-    updateInputStates();
 }
 
-// 入力欄の編集可否を制御
-function updateInputStates() {
-    const fromPartyInput = q('#fromParty');
-    const toPartyInput = q('#toParty');
-
-    if (fromPartyInput && toPartyInput) {
-        // ACE CREATIONが入っている方は常に編集不可
-        if (fromPartyInput.value === ACE_CREATION.name) {
-            // ACE CREATIONが請求元の場合
-            fromPartyInput.readOnly = true;
-            fromPartyInput.style.backgroundColor = '#f5f5f5';
-            fromPartyInput.style.cursor = 'not-allowed';
-
-            toPartyInput.readOnly = false;
-            toPartyInput.style.backgroundColor = '#fff';
-            toPartyInput.style.cursor = 'text';
-        } else if (toPartyInput.value === ACE_CREATION.name) {
-            // ACE CREATIONが請求先の場合
-            toPartyInput.readOnly = true;
-            toPartyInput.style.backgroundColor = '#f5f5f5';
-            toPartyInput.style.cursor = 'not-allowed';
-
-            fromPartyInput.readOnly = false;
-            fromPartyInput.style.backgroundColor = '#fff';
-            fromPartyInput.style.cursor = 'text';
-        }
-    }
-}
-
-// キーボード入力も完全にブロック
-function preventAceCreationEdit(e) {
-    const input = e.target;
-    if (input.value === ACE_CREATION.name) {
-        e.preventDefault();
-        return false;
-    }
-}
-
-// 請求先・請求元入力欄のイベントリスナー
+// 請求先・請求元選択のイベントリスナー
 function setupPartiesListeners() {
-    const fromPartyInput = q('#fromParty');
-    const toPartyInput = q('#toParty');
+    const fromSelect = q('#fromPartySelect');
+    const toSelect = q('#toPartySelect');
     const swapBtn = q('#swapPartiesBtn');
 
-    if (fromPartyInput) {
-        fromPartyInput.addEventListener('keydown', preventAceCreationEdit);
-        fromPartyInput.addEventListener('keypress', preventAceCreationEdit);
-        fromPartyInput.addEventListener('paste', preventAceCreationEdit);
-        fromPartyInput.addEventListener('input', () => {
-            syncPartiesToInvoice();
-            updateInputStates();
-        });
+    // 請求元選択の変更
+    if (fromSelect) {
+        fromSelect.addEventListener('change', syncPartiesToInvoice);
     }
 
-    if (toPartyInput) {
-        toPartyInput.addEventListener('keydown', preventAceCreationEdit);
-        toPartyInput.addEventListener('keypress', preventAceCreationEdit);
-        toPartyInput.addEventListener('paste', preventAceCreationEdit);
-        toPartyInput.addEventListener('input', () => {
-            syncPartiesToInvoice();
-            updateInputStates();
-        });
+    // 請求先選択の変更
+    if (toSelect) {
+        toSelect.addEventListener('change', syncPartiesToInvoice);
     }
 
+    // 入れ替えボタン
     if (swapBtn) {
         swapBtn.addEventListener('click', (e) => {
             e.preventDefault();
@@ -553,13 +669,311 @@ function setupPartiesListeners() {
             swapParties();
         });
     }
+}
 
-    updateInputStates();
+// アドレス帳UI関連の関数
+function openAddressBookModal() {
+    const modal = q('#addressBookModal');
+    modal.style.display = 'flex';
+    renderAddressLists();
+    hideAddressForm();
+    // 法人タブをデフォルトで表示
+    switchTab('corporate');
+}
+
+function closeAddressBookModal() {
+    const modal = q('#addressBookModal');
+    modal.style.display = 'none';
+    hideAddressForm();
+}
+
+function showAddressForm(entityType = null) {
+    const form = q('#addressForm');
+    form.style.display = 'block';
+    clearAddressForm();
+
+    if (entityType) {
+        // 隠しフィールドに種別を設定
+        const hiddenInput = q('#entityTypeHidden');
+        if (hiddenInput) hiddenInput.value = entityType;
+        updateFormLabels(entityType);
+
+        const label = entityType === 'individual' ? '個人' : '法人';
+        q('#formTitle').textContent = `新しい${label}を追加`;
+    } else {
+        q('#formTitle').textContent = '新しいアドレスを追加';
+    }
+}
+
+function hideAddressForm() {
+    const form = q('#addressForm');
+    form.style.display = 'none';
+    clearAddressForm();
+}
+
+// タブ切り替え機能
+function switchTab(tabType) {
+    // タブボタンのアクティブ状態を更新
+    const tabBtns = document.querySelectorAll('.tab-btn');
+    tabBtns.forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.tab === tabType);
+    });
+
+    // タブコンテンツの表示を更新
+    const tabContents = document.querySelectorAll('.tab-content');
+    tabContents.forEach(content => {
+        content.classList.toggle('active', content.id === `${tabType}Tab`);
+    });
+}
+
+function clearAddressForm() {
+    q('#newCompanyName').value = '';
+    q('#newPostalCode').value = '';
+    q('#newAddress').value = '';
+    q('#newPhone').value = '';
+    q('#newInvoiceNo').value = '';
+    q('#newBankName').value = '';
+    q('#newBankNo').value = '';
+    q('#newBankHolder').value = '';
+
+    // 法人をデフォルトに設定
+    const hiddenInput = q('#entityTypeHidden');
+    if (hiddenInput) hiddenInput.value = 'corporate';
+    updateFormLabels('corporate');
+}
+
+// フォームのラベルを更新（法人・個人に応じて）
+function updateFormLabels(entityType = null) {
+    if (!entityType) {
+        const hiddenInput = q('#entityTypeHidden');
+        entityType = hiddenInput ? hiddenInput.value : 'corporate';
+    }
+
+    const nameLabel = q('#nameLabel');
+    const nameInput = q('#newCompanyName');
+    const bankSection = q('#bankInfoSection');
+
+    if (entityType === 'individual') {
+        nameLabel.textContent = '氏名 *';
+        nameInput.placeholder = '田中太郎';
+        // 個人の場合は振込先情報を表示
+        if (bankSection) bankSection.style.display = 'block';
+    } else {
+        nameLabel.textContent = '会社名 *';
+        nameInput.placeholder = '株式会社○○';
+        // 法人の場合は振込先情報を非表示
+        if (bankSection) bankSection.style.display = 'none';
+    }
+}
+
+function saveNewAddress() {
+    const name = q('#newCompanyName').value.trim();
+    const hiddenInput = q('#entityTypeHidden');
+    const entityType = hiddenInput ? hiddenInput.value : 'corporate';
+    const editingId = q('#addressForm').dataset.editingId;
+
+    if (!name) {
+        const label = entityType === 'individual' ? '氏名' : '会社名';
+        alert(`${label}は必須です。`);
+        return;
+    }
+
+    // 個人の場合は振込先情報が必須
+    if (entityType === 'individual') {
+        const bankName = q('#newBankName').value.trim();
+        const bankNo = q('#newBankNo').value.trim();
+        const bankHolder = q('#newBankHolder').value.trim();
+
+        if (!bankName || !bankNo || !bankHolder) {
+            alert('個人登録時は振込先情報（金融機関名、口座種別・番号、口座名義）がすべて必須です。');
+            return;
+        }
+    }
+
+    const address = {
+        name: name,
+        entityType: entityType || 'corporate',
+        postalCode: q('#newPostalCode').value.trim(),
+        address: q('#newAddress').value.trim(),
+        phone: q('#newPhone').value.trim(),
+        invoiceNo: q('#newInvoiceNo').value.trim()
+    };
+
+    // 個人の場合は振込先情報も保存
+    if (entityType === 'individual') {
+        address.bankName = q('#newBankName').value.trim();
+        address.bankNo = q('#newBankNo').value.trim();
+        address.bankHolder = q('#newBankHolder').value.trim();
+    }
+
+    // 編集中の場合はIDを保持
+    if (editingId) {
+        address.id = editingId;
+        delete q('#addressForm').dataset.editingId;
+    }
+
+    addressBook.addAddress(address);
+    renderAddressLists();
+    updatePartySelects();
+    hideAddressForm();
+
+    const message = editingId ? 'アドレスを更新しました。' : 'アドレスを保存しました。';
+    alert(message);
+}
+
+function deleteAddress(id) {
+    if (confirm('このアドレスを削除しますか？')) {
+        addressBook.deleteAddress(id);
+        renderAddressLists();
+        updatePartySelects();
+    }
+}
+
+function editAddress(id) {
+    const address = addressBook.getAddress(id);
+    if (address) {
+        showAddressForm();
+        q('#formTitle').textContent = 'アドレスを編集';
+
+        // 種別を隠しフィールドに設定
+        const hiddenInput = q('#entityTypeHidden');
+        if (hiddenInput) hiddenInput.value = address.entityType || 'corporate';
+        updateFormLabels(address.entityType || 'corporate');
+
+        // その他のフィールドを設定
+        q('#newCompanyName').value = address.name;
+        q('#newPostalCode').value = address.postalCode || '';
+        q('#newAddress').value = address.address || '';
+        q('#newPhone').value = address.phone || '';
+        q('#newInvoiceNo').value = address.invoiceNo || '';
+
+        // 振込先情報を設定（個人の場合）
+        if (address.entityType === 'individual') {
+            q('#newBankName').value = address.bankName || '';
+            q('#newBankNo').value = address.bankNo || '';
+            q('#newBankHolder').value = address.bankHolder || '';
+        }
+
+        // 編集中のIDを保存（保存時に使用）
+        q('#addressForm').dataset.editingId = id;
+    }
+}
+
+function renderAddressLists() {
+    renderCorporateList();
+    renderIndividualList();
+}
+
+function renderCorporateList() {
+    const container = q('#corporateListContainer');
+    const addresses = addressBook.getCorporateAddresses();
+
+    if (addresses.length === 0) {
+        container.innerHTML = '<p style="color: #666; text-align: center; padding: 20px;">保存された法人アドレスはありません</p>';
+        return;
+    }
+
+    container.innerHTML = addresses.map(addr => createAddressItemHtml(addr, false)).join('');
+}
+
+function renderIndividualList() {
+    const container = q('#individualListContainer');
+    const addresses = addressBook.getIndividualAddresses();
+
+    if (addresses.length === 0) {
+        container.innerHTML = '<p style="color: #666; text-align: center; padding: 20px;">保存された個人アドレスはありません</p>';
+        return;
+    }
+
+    container.innerHTML = addresses.map(addr => createAddressItemHtml(addr, false)).join('');
+}
+
+function createAddressItemHtml(addr, showBadge = true) {
+    const entityTypeLabel = addr.entityType === 'individual' ? '個人' : '法人';
+    const badgeHtml = showBadge ? `<span class="entity-badge ${addr.entityType}">${entityTypeLabel}</span>` : '';
+
+    // 振込先情報の表示（個人の場合）
+    let bankInfoHtml = '';
+    if (addr.entityType === 'individual' && (addr.bankName || addr.bankNo || addr.bankHolder)) {
+        bankInfoHtml = '<div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #eee; color: #007bff;">【振込先】';
+        if (addr.bankName) bankInfoHtml += `<div>${addr.bankName}</div>`;
+        if (addr.bankNo) bankInfoHtml += `<div>${addr.bankNo}</div>`;
+        if (addr.bankHolder) bankInfoHtml += `<div>${addr.bankHolder}</div>`;
+        bankInfoHtml += '</div>';
+    }
+
+    return `
+        <div class="address-item">
+            <div class="address-item-header">
+                <div class="address-item-name">
+                    ${addr.name}
+                    ${badgeHtml}
+                </div>
+                <div class="address-item-actions">
+                    <button class="btn small ghost" onclick="editAddress('${addr.id}')">編集</button>
+                    <button class="btn small ghost" onclick="deleteAddress('${addr.id}')">削除</button>
+                </div>
+            </div>
+            <div class="address-item-details">
+                ${addr.postalCode ? `<div>〒 ${addr.postalCode}</div>` : ''}
+                ${addr.address ? `<div>${addr.address}</div>` : ''}
+                ${addr.phone ? `<div>電話: ${addr.phone}</div>` : ''}
+                ${addr.invoiceNo ? `<div>登録番号: ${addr.invoiceNo}</div>` : ''}
+                ${bankInfoHtml}
+            </div>
+        </div>
+    `;
+}
+
+function updatePartySelects() {
+    const fromSelect = q('#fromPartySelect');
+    const toSelect = q('#toPartySelect');
+
+    // 法人・個人のアドレスを分けて取得
+    const corporateAddresses = addressBook.getCorporateAddresses();
+    const individualAddresses = addressBook.getIndividualAddresses();
+
+    // 請求元のオプションを更新（個人のみ + ACE CREATION）
+    const fromCurrentValue = fromSelect.value;
+    fromSelect.innerHTML = `
+        <option value="ace_creation">株式会社ACE CREATION</option>
+        ${individualAddresses.map(addr => `<option value="${addr.id}">${addr.name}（個人）</option>`).join('')}
+        <option value="new">新規のアドレスを入力</option>
+    `;
+    if (fromCurrentValue && fromSelect.querySelector(`option[value="${fromCurrentValue}"]`)) {
+        fromSelect.value = fromCurrentValue;
+    }
+
+    // 請求先のオプションを更新（法人のみ + ACE CREATION）
+    const toCurrentValue = toSelect.value;
+    toSelect.innerHTML = `
+        <option value="ace_creation">株式会社ACE CREATION</option>
+        ${corporateAddresses.map(addr => `<option value="${addr.id}">${addr.name}（法人）</option>`).join('')}
+        <option value="new">新規のアドレスを入力</option>
+    `;
+    if (toCurrentValue && toSelect.querySelector(`option[value="${toCurrentValue}"]`)) {
+        toSelect.value = toCurrentValue;
+    }
 }
 
 // イベントリスナー設定
 q('#pdfBtn').onclick = downloadPDF;
 q('#printBtn').onclick = () => window.print();
+q('#addressBookBtn').onclick = openAddressBookModal;
+q('#addressBookClose').onclick = closeAddressBookModal;
+q('#showAddCorporateFormBtn').onclick = () => showAddressForm('corporate');
+q('#showAddIndividualFormBtn').onclick = () => showAddressForm('individual');
+q('#hideAddFormBtn').onclick = hideAddressForm;
+q('#saveAddressBtn').onclick = saveNewAddress;
+q('#clearFormBtn').onclick = clearAddressForm;
+
+// モーダル外クリックで閉じる
+document.addEventListener('click', (e) => {
+    const modal = q('#addressBookModal');
+    if (e.target === modal) {
+        closeAddressBookModal();
+    }
+});
 
 // 初期化関数
 function initializeApp() {
@@ -575,10 +989,13 @@ function initializeApp() {
     setupEditListeners();
     setupSectionSelectors();
     setupPartiesListeners();
+    setupAddressFormListeners();
+
+    // アドレス帳の初期化
+    updatePartySelects();
 
     // 初期同期
     syncPartiesToInvoice();
-    updateInputStates();
 
     // 初期テーブル行を追加
     addTableRow('main');
@@ -606,6 +1023,17 @@ function setupSectionSelectors() {
     const sectionSelectors = document.querySelectorAll('.section-select');
     sectionSelectors.forEach(select => {
         select.addEventListener('change', saveData);
+    });
+}
+
+// アドレスフォーム用のイベントリスナーを設定
+function setupAddressFormListeners() {
+    // タブクリックのイベントリスナー
+    const tabBtns = document.querySelectorAll('.tab-btn');
+    tabBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            switchTab(btn.dataset.tab);
+        });
     });
 }
 
