@@ -430,6 +430,25 @@ textarea {
     text-align: left;
 }
 
+/* ACE CREATION印鑑のスタイル */
+.ace-stamp {
+    position: absolute;
+    top: 60%;
+    right: 10px;
+    transform: translateY(-50%);
+    width: 120px;
+    height: auto;
+    opacity: 0.9;
+    z-index: 0;
+    pointer-events: none;
+}
+
+/* kvエリアを印鑑より前面に配置 */
+.meta .box:last-child .kv {
+    position: relative;
+    z-index: 1;
+}
+
 .meta .box:last-child .kv div {
     text-align: left;
     display: block;          /* 縦並び表示を確実にする */

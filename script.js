@@ -557,6 +557,10 @@ function syncPartiesToInvoice() {
             // ACE CREATIONの場合は電話・登録番号を表示
             if (fromTelContainer) fromTelContainer.style.display = 'block';
             if (fromRegContainer) fromRegContainer.style.display = 'block';
+
+            // ACE CREATIONの印鑑を表示
+            const aceStamp = q('#aceStamp');
+            if (aceStamp) aceStamp.style.display = 'block';
         } else if (fromData && fromData.address) {
             // アドレス帳からの情報
             let addressHtml = '';
@@ -584,6 +588,10 @@ function syncPartiesToInvoice() {
                 fromRegElem.textContent = '';
                 if (fromRegContainer) fromRegContainer.style.display = 'none';
             }
+
+            // ACE CREATION以外の場合は印鑑を非表示
+            const aceStamp2 = q('#aceStamp');
+            if (aceStamp2) aceStamp2.style.display = 'none';
         } else {
             fromAddrElem.innerHTML = '';
             fromTelElem.textContent = '';
@@ -592,6 +600,10 @@ function syncPartiesToInvoice() {
             // 空の場合は非表示
             if (fromTelContainer) fromTelContainer.style.display = 'none';
             if (fromRegContainer) fromRegContainer.style.display = 'none';
+
+            // ACE CREATION以外の場合は印鑑を非表示
+            const aceStamp = q('#aceStamp');
+            if (aceStamp) aceStamp.style.display = 'none';
         }
 
         // 請求元に応じて振込先情報を更新
