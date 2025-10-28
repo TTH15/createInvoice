@@ -343,7 +343,7 @@ async function downloadPDF() {
 
         // html2canvasでキャプチャ
         const canvas = await html2canvas(sheet, {
-            scale: 4,              // 高解像度化（4倍）
+            scale: 6,              // ファイルサイズ削減（2倍）
             useCORS: true,
             allowTaint: true,
             backgroundColor: '#ffffff',
@@ -405,11 +405,11 @@ async function downloadPDF() {
             }
         });
 
-        const imgData = canvas.toDataURL('image/png', 1.0);
+        const imgData = canvas.toDataURL('image/jpeg', 0.7); // JPEG圧縮で軽量化
         const pdf = new jsPDF('p', 'mm', 'a4');
 
         // 画像をA4サイズに正確にフィット
-        pdf.addImage(imgData, 'PNG', 0, 0, 210, 297);
+        pdf.addImage(imgData, 'JPEG', 0, 0, 210, 297);
         pdf.save('invoice.pdf');
     } finally {
         // ボタンを元の状態に戻す
@@ -521,6 +521,19 @@ function syncPartiesToInvoice() {
         if (toData === ACE_CREATION) {
             // ACE CREATIONが請求先の場合、電話番号と登録番号も表示
             toAddrElem.innerHTML = ACE_CREATION.address;
+            // 請求先の電話・登録番号（存在すれば）を表示
+            const toTelContainer = q('#p_toTelContainer');
+            const toRegContainer = q('#p_toRegContainer');
+            const toTelElem = q('#p_toTel');
+            const toRegElem = q('#p_toReg');
+            if (toTelContainer && toTelElem) {
+                toTelElem.textContent = ACE_CREATION.tel;
+                toTelContainer.style.display = 'block';
+            }
+            if (toRegContainer && toRegElem) {
+                toRegElem.textContent = ACE_CREATION.regNo;
+                toRegContainer.style.display = 'block';
+            }
         } else if (toData && toData.address) {
             // アドレス帳からの住所
             let addressHtml = '';
@@ -531,8 +544,45 @@ function syncPartiesToInvoice() {
                 addressHtml += toData.address;
             }
             toAddrElem.innerHTML = addressHtml || '〒<br />（住所）';
+
+            // 請求先の電話・登録番号は値がある時だけ表示
+            const toTelContainer = q('#p_toTelContainer');
+            const toRegContainer = q('#p_toRegContainer');
+            const toTelElem = q('#p_toTel');
+            const toRegElem = q('#p_toReg');
+            if (toTelContainer && toTelElem) {
+                if (toData.phone) {
+                    toTelElem.textContent = toData.phone;
+                    toTelContainer.style.display = 'block';
+                } else {
+                    toTelElem.textContent = '';
+                    toTelContainer.style.display = 'none';
+                }
+            }
+            if (toRegContainer && toRegElem) {
+                if (toData.invoiceNo) {
+                    toRegElem.textContent = toData.invoiceNo;
+                    toRegContainer.style.display = 'block';
+                } else {
+                    toRegElem.textContent = '';
+                    toRegContainer.style.display = 'none';
+                }
+            }
         } else {
             toAddrElem.innerHTML = '〒<br />（住所）';
+            // 値がない場合は非表示
+            const toTelContainer = q('#p_toTelContainer');
+            const toRegContainer = q('#p_toRegContainer');
+            const toTelElem = q('#p_toTel');
+            const toRegElem = q('#p_toReg');
+            if (toTelContainer && toTelElem) {
+                toTelElem.textContent = '';
+                toTelContainer.style.display = 'none';
+            }
+            if (toRegContainer && toRegElem) {
+                toRegElem.textContent = '';
+                toRegContainer.style.display = 'none';
+            }
         }
     }
 
@@ -997,11 +1047,48 @@ function initializeApp() {
         q('#p_subject').textContent = '2025年8月稼働分';
     }
 
+    // 日付の初期設定（空 or プレースホルダーなら本日の日付を設定）
+    const issueDateEl = q('#p_issueDate');
+    const dueDateEl = q('#p_dueDate');
+    const todayStr = (() => {
+        const d = new Date();
+        const y = d.getFullYear();
+        const m = d.getMonth() + 1;
+        const day = d.getDate();
+        return `${y}年${m}月${day}日`;
+    })();
+    const isPlaceholderDate = (t) => {
+        const s = (t || '').trim();
+        if (s === '') return true;
+        // 例: "2025年 月 日" のように月と日が空白
+        if (/^\d{4}年\s*月\s*日$/.test(s)) return true;
+        // 例: "----年--月--日" のようなプレースホルダー
+        if (/^-{2,}年?-{0,}月?-{0,}日?$/.test(s)) return true;
+        return false;
+    };
+
+    if (issueDateEl && isPlaceholderDate(issueDateEl.textContent)) {
+        issueDateEl.textContent = todayStr;
+    }
+    if (dueDateEl && isPlaceholderDate(dueDateEl.textContent)) {
+        dueDateEl.textContent = todayStr;
+    }
+
     // イベントリスナーを設定
     setupEditListeners();
     setupSectionSelectors();
     setupPartiesListeners();
     setupAddressFormListeners();
+
+    // 日付同期リスナー（請求日を変更したら振込期日も同時に更新）
+    if (issueDateEl && dueDateEl) {
+        const syncDueFromIssue = () => {
+            dueDateEl.textContent = issueDateEl.textContent;
+            saveData();
+        };
+        issueDateEl.addEventListener('input', syncDueFromIssue);
+        issueDateEl.addEventListener('blur', syncDueFromIssue);
+    }
 
     // アドレス帳の初期化
     updatePartySelects();

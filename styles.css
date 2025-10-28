@@ -564,7 +564,7 @@ textarea {
     color: #fff;             /* 白文字 */
     font-weight: 600;
     text-align: center;      /* 中央揃え */
-    padding: 10px 12px;      /* 上下の余白を少し増やす */
+    padding: 6px 12px;      /* 上下の余白を少し増やす */
     border: none;            /* ボーダーなし */
     height: 28px;
 }
@@ -573,10 +573,10 @@ textarea {
 .tbl tbody td {
     border: none;            /* ボーダーなし */
     border-bottom: 1px solid #000;  /* 下線のみ */
-    padding: 8px 10px;       /* セル内余白を増やす */
+    padding: 5px 10px;       /* 行をやや詰める */
     text-align: left;
     background: #fff;        /* 白背景 */
-    line-height: 1.6;        /* 行の高さを確保 */
+    line-height: 1.45;       /* 文字が切れない程度に圧縮 */
 }
 
 /* 右寄せセル */
@@ -635,7 +635,7 @@ textarea {
     color: #000;
     background: transparent;
     font-size: 14px;
-    line-height: 1.6;
+    line-height: 1.4;   /* セクション見出しもやや詰める */
     flex-shrink: 0;
 }
 
@@ -1057,7 +1057,7 @@ textarea {
     border: none;
     background: transparent;
     width: 100%;
-    padding: 4px;
+    padding: 2px 4px;        /* 行をやや詰める */
     font-size: inherit;
     font-family: inherit;
     text-align: inherit;
