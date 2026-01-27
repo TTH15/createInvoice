@@ -209,13 +209,16 @@ function calculateTotals() {
     const deductTotal = getTableTotal('p_deduct');
 
     const subtotal = mainTotal;
-    const total = subtotal - deductTotal;
+    const taxRate = 0.1;
+    const tax = Math.round(subtotal * taxRate); // 消費税（10%）
+    const total = subtotal + tax - deductTotal;
 
     q('#p_subtotal').textContent = `¥${Number(subtotal).toLocaleString()}`;
+    q('#p_tax').textContent = `¥${Number(tax).toLocaleString()}`;
     q('#p_deductTotal').textContent = `¥${Number(deductTotal).toLocaleString()}`;
     q('#p_total').textContent = `¥${Number(total).toLocaleString()}`;
 
-    // ご請求金額に合計を表示
+    // ご請求金額に合計を表示（消費税込み）
     q('#p_billAmountDisplay').textContent = `¥${Number(total).toLocaleString()}（税込）`;
 }
 
@@ -1042,9 +1045,16 @@ function initializeApp() {
     // 固定値を設定
     q('#p_greeting').textContent = '下記の通りご請求申し上げます。';
 
-    // 初期値を設定
+    // 初期値を設定（件名：前月の稼働分）
     if (!q('#p_subject').textContent.trim()) {
-        q('#p_subject').textContent = '2025年8月稼働分';
+        const prevMonthStr = (() => {
+            const d = new Date();
+            d.setMonth(d.getMonth() - 1); // 1ヶ月前
+            const y = d.getFullYear();
+            const m = d.getMonth() + 1;
+            return `${y}年${m}月稼働分`;
+        })();
+        q('#p_subject').textContent = prevMonthStr;
     }
 
     // 日付の初期設定（空 or プレースホルダーなら本日の日付を設定）

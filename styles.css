@@ -718,7 +718,7 @@ textarea {
     justify-content: space-between;
     align-items: center;
     border-bottom: 1px solid #000;
-    padding: 8px 0;
+    padding: 4px 0;           /* 行の高さを低めに */
 }
 
 /* 合計行のラベル部分 */
@@ -727,6 +727,7 @@ textarea {
     text-align: left;
     padding-left: 12px;
     font-weight: normal;
+    font-size: 13px;          /* ラベル文字を少し小さく */
 }
 
 /* 合計行の金額部分（テーブルの金額列と幅を揃える） */
@@ -735,6 +736,7 @@ textarea {
     text-align: right;
     padding-right: 12px;
     font-weight: normal;
+    font-size: 13px;          /* 金額文字も少し小さく */
 }
 
 /* 最終合計行（合計）のスタイル */
@@ -745,6 +747,7 @@ textarea {
 
 .totals .row.final-total .total-label {
     font-weight: 700;
+    font-size: 15px;          /* 合計ラベルだけは大きめ */
 }
 
 .totals .row.final-total .total-amount {
