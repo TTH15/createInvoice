@@ -19,6 +19,15 @@
                 <h1 style="margin:0;font-size:18px;">請求書作成システム</h1>
             </div>
             <div class="control-right">
+                <div class="tax-control">
+                    <span class="tax-label">消費税</span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="taxEnabled" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                    <input type="number" id="taxRate" value="10" min="0" max="100" step="1" class="tax-rate-input">
+                    <span class="tax-percent">%</span>
+                </div>
                 <button class="btn ghost" id="addressBookBtn">アドレス帳</button>
                 <button class="btn primary" id="pdfBtn">PDFダウンロード</button>
                 <button class="btn" id="printBtn">印刷</button>
@@ -166,8 +175,8 @@
                             <div class="total-label">小計</div>
                             <div class="total-amount" id="p_subtotal"></div>
                         </div>
-                        <div class="row">
-                            <div class="total-label">消費税（10%）</div>
+                        <div class="row" id="p_taxRow">
+                            <div class="total-label" id="p_taxLabel">消費税（10%）</div>
                             <div class="total-amount" id="p_tax"></div>
                         </div>
                         <div class="row">

@@ -209,16 +209,39 @@ function calculateTotals() {
     const deductTotal = getTableTotal('p_deduct');
 
     const subtotal = mainTotal;
-    const taxRate = 0.1;
-    const tax = Math.round(subtotal * taxRate); // 消費税（10%）
+
+    // 消費税設定を取得
+    const taxEnabled = q('#taxEnabled')?.checked ?? true;
+    const taxRateInput = q('#taxRate');
+    const taxRatePercent = taxEnabled && taxRateInput ? parseFloat(taxRateInput.value) || 0 : 0;
+    const taxRate = taxRatePercent / 100;
+    const tax = taxEnabled ? Math.round(subtotal * taxRate) : 0;
     const total = subtotal + tax - deductTotal;
 
     q('#p_subtotal').textContent = `¥${Number(subtotal).toLocaleString()}`;
-    q('#p_tax').textContent = `¥${Number(tax).toLocaleString()}`;
+
+    // 消費税行の表示/非表示と値の設定
+    const taxRow = q('#p_taxRow');
+    const taxAmount = q('#p_tax');
+    const taxLabel = q('#p_taxLabel');
+    if (taxRow && taxAmount) {
+        if (taxEnabled) {
+            taxRow.style.display = 'flex';
+            taxAmount.textContent = `¥${Number(tax).toLocaleString()}`;
+            // 税率ラベルを更新
+            if (taxLabel) {
+                taxLabel.textContent = `消費税（${Math.round(taxRatePercent)}%）`;
+            }
+        } else {
+            taxRow.style.display = 'none';
+            taxAmount.textContent = '';
+        }
+    }
+
     q('#p_deductTotal').textContent = `¥${Number(deductTotal).toLocaleString()}`;
     q('#p_total').textContent = `¥${Number(total).toLocaleString()}`;
 
-    // ご請求金額に合計を表示（消費税込み）
+    // ご請求金額に合計を表示
     q('#p_billAmountDisplay').textContent = `¥${Number(total).toLocaleString()}（税込）`;
 }
 
@@ -1089,6 +1112,7 @@ function initializeApp() {
     setupSectionSelectors();
     setupPartiesListeners();
     setupAddressFormListeners();
+    setupTaxControls();
 
     // 日付同期リスナー（請求日を変更したら振込期日も同時に更新）
     if (issueDateEl && dueDateEl) {
@@ -1144,6 +1168,34 @@ function setupAddressFormListeners() {
             switchTab(btn.dataset.tab);
         });
     });
+}
+
+// 消費税設定のイベントリスナーを設定
+function setupTaxControls() {
+    const taxEnabled = q('#taxEnabled');
+    const taxRate = q('#taxRate');
+
+    if (taxEnabled) {
+        taxEnabled.addEventListener('change', () => {
+            // チェックボックスの状態に応じて税率入力欄を有効/無効化
+            if (taxRate) {
+                taxRate.disabled = !taxEnabled.checked;
+            }
+            calculateTotals();
+            saveData();
+        });
+    }
+
+    if (taxRate) {
+        taxRate.addEventListener('input', () => {
+            calculateTotals();
+            saveData();
+        });
+        taxRate.addEventListener('change', () => {
+            calculateTotals();
+            saveData();
+        });
+    }
 }
 
 // 敬称選択機能（クリック切り替え式）
