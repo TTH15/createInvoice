@@ -345,6 +345,37 @@ function render() {
     calculateTotals();
 }
 
+// PDFファイル名を生成
+function generatePDFFileName() {
+    // p_subjectから年月を抽出（例: "2025年12月稼働分" → "202512", "12月分"）
+    const subjectText = q('#p_subject')?.textContent?.trim() || '';
+    let yearMonth = '';
+    let monthLabel = '';
+
+    // 年月を抽出する正規表現（例: 2025年12月）
+    const match = subjectText.match(/(\d{4})年(\d{1,2})月/);
+    if (match) {
+        const year = match[1];
+        const month = match[2].padStart(2, '0');
+        yearMonth = `${year}${month}`;
+        monthLabel = `${match[2]}月分`;
+    } else {
+        // マッチしない場合は現在の年月を使用
+        const now = new Date();
+        now.setMonth(now.getMonth() - 1); // 前月
+        yearMonth = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}`;
+        monthLabel = `${now.getMonth() + 1}月分`;
+    }
+
+    // 請求元の名前を取得
+    const fromName = q('#p_fromName')?.textContent?.trim() || '請求書';
+
+    // ファイル名に使用できない文字を除去
+    const safeName = fromName.replace(/[\\/:*?"<>|]/g, '');
+
+    return `${yearMonth}_${monthLabel}御請求書_${safeName}.pdf`;
+}
+
 async function downloadPDF() {
     const { jsPDF } = window.jspdf;
     const sheet = q('#sheet');
@@ -436,7 +467,10 @@ async function downloadPDF() {
 
         // 画像をA4サイズに正確にフィット
         pdf.addImage(imgData, 'JPEG', 0, 0, 210, 297);
-        pdf.save('invoice.pdf');
+
+        // ファイル名を生成: 「202512_12月分御請求書_〇〇.pdf」
+        const fileName = generatePDFFileName();
+        pdf.save(fileName);
     } finally {
         // ボタンを元の状態に戻す
         buttons.forEach((btn, index) => {
