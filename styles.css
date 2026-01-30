@@ -944,18 +944,21 @@ textarea {
 .pdf-generating .section-name-cell .inner {
   padding: 0 !important;
   line-height: 1.5 !important;
+  overflow: visible !important;
 }
 
 /* PDF生成時のテーブル行のパディング調整 */
 .pdf-generating .tbl tbody td {
-  padding: 10px !important;
-  line-height: 1.8 !important;
+  padding: 6px 10px !important;
+  line-height: 1.6 !important;
   vertical-align: middle !important;
+  overflow: visible !important;
 }
 
 .pdf-generating .editable-cell {
-  line-height: 1.8 !important;
-  padding: 4px !important;
+  line-height: 1.6 !important;
+  padding: 3px 4px !important;
+  overflow: visible !important;
 }
 
 @media print {

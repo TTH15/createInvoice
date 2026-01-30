@@ -439,25 +439,39 @@ async function downloadPDF() {
                     btn.style.visibility = 'hidden';
                 });
 
-                // セクション名の行の高さを微調整
+                // セクション名の行の高さ（文字が切れないよう余裕を持たせる）
                 const sectionRows = clonedDoc.querySelectorAll('.section-row');
                 sectionRows.forEach(row => {
                     row.style.height = 'auto';
-                    row.style.lineHeight = '1.8';
+                    row.style.lineHeight = '1.6';
+                    row.style.overflow = 'visible';
                 });
 
-                // セクション名セルのパディングを調整
+                // セクション名セルのパディング（文字が切れないよう余裕を持たせる）
                 const sectionCells = clonedDoc.querySelectorAll('.section-name-cell');
                 sectionCells.forEach(cell => {
-                    cell.style.paddingTop = '10px';
-                    cell.style.paddingBottom = '10px';
+                    cell.style.paddingTop = '6px';
+                    cell.style.paddingBottom = '6px';
+                    cell.style.overflow = 'visible';
                 });
 
-                // セクションヘッダーのコンテンツに余白を追加
+                // セクションヘッダーのコンテンツの余白
                 const sectionContents = clonedDoc.querySelectorAll('.section-header-content');
                 sectionContents.forEach(content => {
-                    content.style.paddingTop = '4px';
-                    content.style.paddingBottom = '4px';
+                    content.style.paddingTop = '3px';
+                    content.style.paddingBottom = '3px';
+                });
+
+                // すべてのテーブルセルに overflow: visible を設定
+                const allTds = clonedDoc.querySelectorAll('.tbl tbody td');
+                allTds.forEach(td => {
+                    td.style.overflow = 'visible';
+                });
+
+                // 編集可能セルも同様に
+                const editableCells = clonedDoc.querySelectorAll('.editable-cell');
+                editableCells.forEach(cell => {
+                    cell.style.overflow = 'visible';
                 });
             }
         });
