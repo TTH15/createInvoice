@@ -220,21 +220,23 @@ function calculateTotals() {
 
     q('#p_subtotal').textContent = `¥${Number(subtotal).toLocaleString()}`;
 
-    // 消費税行の表示/非表示と値の設定
+    // 消費税行の表示と値の設定
     const taxRow = q('#p_taxRow');
     const taxAmount = q('#p_tax');
     const taxLabel = q('#p_taxLabel');
-    if (taxRow && taxAmount) {
+    if (taxRow && taxAmount && taxLabel) {
+        taxRow.style.display = 'flex';
         if (taxEnabled) {
-            taxRow.style.display = 'flex';
+            // 消費税ON: 外税として消費税を表示
             taxAmount.textContent = `¥${Number(tax).toLocaleString()}`;
-            // 税率ラベルを更新
-            if (taxLabel) {
-                taxLabel.textContent = `消費税（${Math.round(taxRatePercent)}%）`;
-            }
+            taxLabel.textContent = `消費税（${Math.round(taxRatePercent)}%）`;
         } else {
-            taxRow.style.display = 'none';
-            taxAmount.textContent = '';
+            // 消費税OFF: 内税として逆算した消費税を表示
+            // 内消費税 = 合計 × 税率 / (1 + 税率)
+            const taxRateForCalc = (q('#taxRate')?.value || 10) / 100;
+            const innerTax = Math.round(total * taxRateForCalc / (1 + taxRateForCalc));
+            taxAmount.textContent = `¥${Number(innerTax).toLocaleString()}`;
+            taxLabel.textContent = `内消費税`;
         }
     }
 
